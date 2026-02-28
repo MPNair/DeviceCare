@@ -6,6 +6,7 @@ import '../models/gadget.dart';
 import '../themes/glass_theme.dart';
 import 'package:provider/provider.dart';
 import '../services/settings_provider.dart';
+import '../services/notification_service.dart';
 import '../services/scanner_service.dart';
 import '../models/folder.dart';
 import 'package:file_picker/file_picker.dart';
@@ -49,6 +50,9 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
   List<String> _imageUrls = [];
   List<Map<String, dynamic>> _documents = [];
   Map<String, dynamic> _customFields = {};
+
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  ColorScheme get _scheme => Theme.of(context).colorScheme;
 
   final List<String> _categories = [
     'Smartphone',
@@ -138,6 +142,7 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
   @override
   Widget build(BuildContext context) {
     bool isEdit = widget.gadget != null;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Edit Gadget' : 'Add New Gadget'),
@@ -157,7 +162,9 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+            colors: _isDark
+                ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
+                : [_scheme.surface, _scheme.primaryContainer.withOpacity(0.32)],
           ),
         ),
         child: SingleChildScrollView(
@@ -281,7 +288,7 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
                 SizedBox(height: 15),
                 Text(
                   'Condition Score: ${_conditionScore.toInt()}/10',
-                  style: TextStyle(color: Colors.white70),
+                  style: TextStyle(color: _scheme.onSurfaceVariant),
                 ),
                 Slider(
                   value: _conditionScore,
@@ -338,7 +345,7 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: _scheme.onPrimary,
                     ),
                   ),
                 ),
@@ -374,17 +381,14 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
-      style: TextStyle(color: Colors.white),
+      style: TextStyle(color: _scheme.onSurface),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: Colors.white60),
-        prefixIcon: Icon(icon, color: GlassTheme.accentColor),
+        labelStyle: TextStyle(color: _scheme.onSurfaceVariant),
+        prefixIcon: Icon(icon, color: _scheme.primary),
         suffixIcon: label == 'Serial Number'
             ? IconButton(
-                icon: Icon(
-                  Icons.qr_code_scanner,
-                  color: GlassTheme.accentColor,
-                ),
+                icon: Icon(Icons.qr_code_scanner, color: _scheme.primary),
                 onPressed: () async {
                   final code = await ScannerService.scanCode();
                   if (code != null) controller.text = code;
@@ -392,14 +396,16 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
               )
             : null,
         filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
+        fillColor: _isDark ? Colors.white.withOpacity(0.05) : Colors.white,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: Colors.white10),
+          borderSide: BorderSide(
+            color: _scheme.outlineVariant.withOpacity(0.65),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide(color: GlassTheme.accentColor),
+          borderSide: BorderSide(color: _scheme.primary),
         ),
       ),
       validator: (value) =>
@@ -418,27 +424,24 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(color: Colors.white60, fontSize: 12),
+          style: TextStyle(color: _scheme.onSurfaceVariant, fontSize: 12),
         ),
         SizedBox(height: 5),
         Container(
           padding: EdgeInsets.symmetric(horizontal: 15),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: _isDark ? Colors.white.withOpacity(0.05) : Colors.white,
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: _scheme.outlineVariant.withOpacity(0.65)),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,
               isExpanded: true,
-              dropdownColor: Color(0xFF1E293B),
-              style: TextStyle(color: Colors.white),
+              dropdownColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
+              style: TextStyle(color: _scheme.onSurface),
               items: options.map((String val) {
-                return DropdownMenuItem<String>(
-                  value: val,
-                  child: Text(val),
-                );
+                return DropdownMenuItem<String>(value: val, child: Text(val));
               }).toList(),
               onChanged: onChanged,
             ),
@@ -457,12 +460,19 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
           children: [
             Text(
               'Folder / Collection',
-              style: TextStyle(color: Colors.white60, fontSize: 12),
+              style: TextStyle(color: _scheme.onSurfaceVariant, fontSize: 12),
             ),
             TextButton.icon(
               onPressed: _showAddFolderDialog,
-              icon: Icon(Icons.add_box_outlined, size: 14, color: GlassTheme.accentColor),
-              label: Text('New Folder', style: TextStyle(color: GlassTheme.accentColor, fontSize: 12)),
+              icon: Icon(
+                Icons.add_box_outlined,
+                size: 14,
+                color: GlassTheme.accentColor,
+              ),
+              label: Text(
+                'New Folder',
+                style: TextStyle(color: GlassTheme.accentColor, fontSize: 12),
+              ),
               style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
             ),
           ],
@@ -471,9 +481,9 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
         Container(
           padding: EdgeInsets.symmetric(horizontal: 15),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: _isDark ? Colors.white.withOpacity(0.05) : Colors.white,
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.white10),
+            border: Border.all(color: _scheme.outlineVariant.withOpacity(0.65)),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
@@ -481,10 +491,10 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
               isExpanded: true,
               hint: Text(
                 'Select Folder',
-                style: TextStyle(color: Colors.white38),
+                style: TextStyle(color: _scheme.onSurfaceVariant),
               ),
-              dropdownColor: Color(0xFF1E293B),
-              style: TextStyle(color: Colors.white),
+              dropdownColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
+              style: TextStyle(color: _scheme.onSurface),
               items: [
                 DropdownMenuItem<String>(
                   value: null,
@@ -508,33 +518,45 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('New Folder'),
-        backgroundColor: Color(0xFF1E293B),
-        titleTextStyle: TextStyle(color: Colors.white, fontSize: 18),
+        backgroundColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
+        titleTextStyle: TextStyle(color: _scheme.onSurface, fontSize: 18),
         content: TextField(
           autofocus: true,
           onChanged: (v) => folderName = v,
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: _scheme.onSurface),
           decoration: InputDecoration(
             labelText: 'Folder Name',
-            labelStyle: TextStyle(color: Colors.white60),
-            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+            labelStyle: TextStyle(color: _scheme.onSurfaceVariant),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: _scheme.outlineVariant),
+            ),
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
           TextButton(
             onPressed: () async {
               if (folderName.isNotEmpty) {
                 try {
-                  final token = Provider.of<SettingsProvider>(context, listen: false).authToken;
-                  final newFolder = await _apiService.createFolder({'name': folderName}, token);
+                  final token = Provider.of<SettingsProvider>(
+                    context,
+                    listen: false,
+                  ).authToken;
+                  final newFolder = await _apiService.createFolder({
+                    'name': folderName,
+                  }, token);
                   await _fetchAvailableFolders();
                   if (mounted) {
                     setState(() => _selectedFolderId = newFolder.id);
                     Navigator.pop(context);
                   }
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Error: $e')));
                 }
               }
             },
@@ -549,54 +571,76 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Photos', style: TextStyle(color: Colors.white60, fontSize: 12)),
+        Text(
+          'Photos',
+          style: TextStyle(color: _scheme.onSurfaceVariant, fontSize: 12),
+        ),
         SizedBox(height: 10),
         SizedBox(
           height: 100,
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
-              ..._imageUrls.asMap().entries.map(
-                (entry) {
-                  int index = entry.key;
-                  String url = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 12.0),
-                    child: Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: (url.startsWith('http') || url.startsWith('https') || url.startsWith('blob:'))
-                              ? Image.network(url, width: 100, height: 100, fit: BoxFit.cover)
-                              : (kIsWeb 
+              ..._imageUrls.asMap().entries.map((entry) {
+                int index = entry.key;
+                String url = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12.0),
+                  child: Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child:
+                            (url.startsWith('http') ||
+                                url.startsWith('https') ||
+                                url.startsWith('blob:'))
+                            ? Image.network(
+                                url,
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
+                              )
+                            : (kIsWeb
                                   ? Container(
-                                      width: 100, 
-                                      height: 100, 
-                                      color: Colors.white10, 
-                                      child: Icon(Icons.image_not_supported, color: Colors.white24)
+                                      width: 100,
+                                      height: 100,
+                                      color: _scheme.surfaceContainerHighest,
+                                      child: Icon(
+                                        Icons.image_not_supported,
+                                        color: _scheme.outline,
+                                      ),
                                     )
-                                  : Image.file(File(url), width: 100, height: 100, fit: BoxFit.cover)),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 4,
-                          child: InkWell(
-                            onTap: () => setState(() => _imageUrls.removeAt(index)),
-                            child: Container(
-                              padding: EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(Icons.close, color: Colors.white, size: 14),
+                                  : Image.file(
+                                      File(url),
+                                      width: 100,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                    )),
+                      ),
+                      Positioned(
+                        top: 4,
+                        right: 4,
+                        child: InkWell(
+                          onTap: () =>
+                              setState(() => _imageUrls.removeAt(index)),
+                          child: Container(
+                            padding: EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 14,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
               InkWell(
                 onTap: () async {
                   final picker = ImagePicker();
@@ -611,16 +655,30 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
+                    color: _isDark
+                        ? Colors.white.withOpacity(0.05)
+                        : Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white10),
+                    border: Border.all(
+                      color: _scheme.outlineVariant.withOpacity(0.65),
+                    ),
                   ),
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.add_a_photo, color: GlassTheme.accentColor, size: 28),
+                      Icon(
+                        Icons.add_a_photo,
+                        color: GlassTheme.accentColor,
+                        size: 28,
+                      ),
                       SizedBox(height: 4),
-                      Text('Add Photo', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                      Text(
+                        'Add Photo',
+                        style: TextStyle(
+                          color: _scheme.onSurfaceVariant,
+                          fontSize: 10,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -655,9 +713,11 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: 15, vertical: 15),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: _isDark ? Colors.white.withOpacity(0.05) : Colors.white,
               borderRadius: BorderRadius.circular(15),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(
+                color: _scheme.outlineVariant.withOpacity(0.65),
+              ),
             ),
             child: Row(
               children: [
@@ -666,7 +726,7 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
                 Expanded(
                   child: Text(
                     currentUrl ?? 'No file selected',
-                    style: TextStyle(color: Colors.white70),
+                    style: TextStyle(color: _scheme.onSurfaceVariant),
                   ),
                 ),
               ],
@@ -683,7 +743,7 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
       children: [
         Text(
           'Documents',
-          style: TextStyle(color: Colors.white60, fontSize: 12),
+          style: TextStyle(color: _scheme.onSurfaceVariant, fontSize: 12),
         ),
         SizedBox(height: 10),
         ..._documents.map(
@@ -692,9 +752,11 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
             child: Container(
               padding: EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
+                color: _isDark ? Colors.white.withOpacity(0.05) : Colors.white,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.white10),
+                border: Border.all(
+                  color: _scheme.outlineVariant.withOpacity(0.65),
+                ),
               ),
               child: Row(
                 children: [
@@ -710,11 +772,17 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
                       children: [
                         Text(
                           doc['name'] ?? 'Unnamed Document',
-                          style: TextStyle(color: Colors.white, fontSize: 14),
+                          style: TextStyle(
+                            color: _scheme.onSurface,
+                            fontSize: 14,
+                          ),
                         ),
                         Text(
                           doc['url'] ?? '',
-                          style: TextStyle(color: Colors.white54, fontSize: 12),
+                          style: TextStyle(
+                            color: _scheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -749,23 +817,24 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text('Add Document'),
-          backgroundColor: Color(0xFF1E293B),
-          titleTextStyle: TextStyle(color: Colors.white, fontSize: 18),
+          backgroundColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
+          titleTextStyle: TextStyle(color: _scheme.onSurface, fontSize: 18),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 onChanged: (v) => docName = v,
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: _scheme.onSurface),
                 decoration: InputDecoration(
                   labelText: 'Document Name (e.g. Invoice)',
-                  labelStyle: TextStyle(color: Colors.white60),
+                  labelStyle: TextStyle(color: _scheme.onSurfaceVariant),
                 ),
               ),
               SizedBox(height: 20),
               ElevatedButton.icon(
                 onPressed: () async {
-                  FilePickerResult? result = await FilePicker.platform.pickFiles();
+                  FilePickerResult? result = await FilePicker.platform
+                      .pickFiles();
                   if (result != null) {
                     setDialogState(() => docPath = result.files.single.path);
                   }
@@ -778,7 +847,10 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
                   padding: const EdgeInsets.only(top: 8.0),
                   child: Text(
                     docPath!.split(RegExp(r'[/\\]')).last,
-                    style: TextStyle(color: Colors.white54, fontSize: 12),
+                    style: TextStyle(
+                      color: _scheme.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
             ],
@@ -813,15 +885,18 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
             margin: EdgeInsets.only(bottom: 8),
             padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: _isDark ? Colors.white.withOpacity(0.05) : Colors.white,
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _scheme.outlineVariant.withOpacity(0.65),
+              ),
             ),
             child: Row(
               children: [
                 Expanded(
                   child: Text(
                     '${e.key}: ${e.value}',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: _scheme.onSurface),
                   ),
                 ),
                 IconButton(
@@ -849,25 +924,25 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Add Custom Field'),
-        backgroundColor: Color(0xFF1E293B),
-        titleTextStyle: TextStyle(color: Colors.white),
+        backgroundColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
+        titleTextStyle: TextStyle(color: _scheme.onSurface),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               onChanged: (v) => key = v,
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: _scheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'Field Name (e.g. Battery Health)',
-                labelStyle: TextStyle(color: Colors.white60),
+                labelStyle: TextStyle(color: _scheme.onSurfaceVariant),
               ),
             ),
             TextField(
               onChanged: (v) => value = v,
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: _scheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'Value (e.g. 98%)',
-                labelStyle: TextStyle(color: Colors.white60),
+                labelStyle: TextStyle(color: _scheme.onSurfaceVariant),
               ),
             ),
           ],
@@ -905,9 +980,9 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: 15, vertical: 15),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
+          color: _isDark ? Colors.white.withOpacity(0.05) : Colors.white,
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Colors.white10),
+          border: Border.all(color: _scheme.outlineVariant.withOpacity(0.65)),
         ),
         child: Row(
           children: [
@@ -915,7 +990,7 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
             SizedBox(width: 10),
             Text(
               DateFormat('yyyy-MM-dd').format(_purchaseDate),
-              style: TextStyle(color: Colors.white),
+              style: TextStyle(color: _scheme.onSurface),
             ),
           ],
         ),
@@ -937,7 +1012,9 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
           'storageCapacity': _storageController.text,
           'color': _colorController.text,
           'purchaseStore': _supplierController.text,
-          'technicalSpecs': _specsController.text.isNotEmpty ? jsonDecode(_specsController.text) : {},
+          'technicalSpecs': _specsController.text.isNotEmpty
+              ? jsonDecode(_specsController.text)
+              : {},
           'serialNumber': _serialController.text,
           'purchaseDate': DateFormat('yyyy-MM-dd').format(_purchaseDate),
           'purchasePrice': double.parse(_priceController.text),
@@ -948,14 +1025,18 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
           'imageUrls': _imageUrls,
           'documents': _documents,
           'customFields': _customFields,
-          'tags': _tagsController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
+          'tags': _tagsController.text
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList(),
         };
 
         if (_warrantyMonthsController.text.isNotEmpty) {
           int months = int.parse(_warrantyMonthsController.text);
-          gadgetData['warrantyExpiryDate'] = DateFormat('yyyy-MM-dd').format(
-            _purchaseDate.add(Duration(days: (months * 30.44).round())),
-          );
+          gadgetData['warrantyExpiryDate'] = DateFormat(
+            'yyyy-MM-dd',
+          ).format(_purchaseDate.add(Duration(days: (months * 30.44).round())));
         }
 
         if (widget.gadget != null) {
@@ -964,12 +1045,17 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
           await _apiService.createGadget(gadgetData, token);
         }
 
+        await NotificationService.syncSchedulesFromApi(context);
+
         if (mounted) {
           Navigator.pop(context, true);
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.redAccent),
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.redAccent,
+          ),
         );
       }
     }
@@ -984,17 +1070,24 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
 
       if (result != null && result.files.single.path != null) {
         final settings = Provider.of<SettingsProvider>(context, listen: false);
-        await _apiService.importCSV(File(result.files.single.path!), settings.authToken);
+        await _apiService.importCSV(
+          File(result.files.single.path!),
+          settings.authToken,
+        );
+        await NotificationService.syncSchedulesFromApi(context);
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Import successful')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Import successful')));
           Navigator.pop(context, true);
         }
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Import failed: $e'), backgroundColor: Colors.redAccent),
+        SnackBar(
+          content: Text('Import failed: $e'),
+          backgroundColor: Colors.redAccent,
+        ),
       );
     }
   }

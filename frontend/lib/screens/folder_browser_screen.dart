@@ -18,6 +18,20 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
   String _selectedType = 'all';
   bool _isLoading = true;
 
+  static const Set<String> _hiddenFolderTypes = {
+    'warranty',
+    'receipts',
+    'manuals',
+    'brand',
+    'category',
+  };
+
+  bool _isHiddenType(String type) =>
+      _hiddenFolderTypes.contains(type.toLowerCase());
+
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  ColorScheme get _scheme => Theme.of(context).colorScheme;
+
   @override
   void initState() {
     super.initState();
@@ -46,6 +60,10 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final gradientColors = _isDark
+        ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
+        : [_scheme.surface, _scheme.primaryContainer.withOpacity(0.32)];
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
@@ -54,7 +72,7 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: _scheme.onSurface,
           ),
         ),
         backgroundColor: Colors.transparent,
@@ -72,7 +90,7 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+            colors: gradientColors,
           ),
         ),
         child: Column(
@@ -90,17 +108,7 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
   }
 
   Widget _buildFilterBar() {
-    final types = [
-      'all',
-      'home',
-      'office',
-      'warranty',
-      'receipts',
-      'manuals',
-      'brand',
-      'category',
-      'custom',
-    ];
+    final types = ['all', 'home', 'office', 'custom'];
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -115,15 +123,25 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? Colors.white : Colors.white70,
+                  color: isSelected
+                      ? _scheme.onPrimary
+                      : (_isDark ? Colors.white70 : _scheme.onSurfaceVariant),
                 ),
               ),
               selected: isSelected,
               onSelected: (val) {
                 if (val) setState(() => _selectedType = type);
               },
-              selectedColor: GlassTheme.accentColor,
-              backgroundColor: Colors.white12,
+              selectedColor: _scheme.primary,
+              backgroundColor: _isDark
+                  ? Colors.white12
+                  : _scheme.surfaceContainerHighest,
+              showCheckmark: false,
+              side: BorderSide(
+                color: isSelected
+                    ? Colors.transparent
+                    : _scheme.outlineVariant.withOpacity(0.6),
+              ),
             ),
           );
         }).toList(),
@@ -132,20 +150,26 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
   }
 
   Widget _buildFolderList() {
+    final visibleRootFolders = _rootFolders
+        .where((f) => !_isHiddenType(f.folderType))
+        .toList();
+
     final filteredFolders = _selectedType == 'all'
-        ? _rootFolders
-        : _rootFolders.where((f) => f.folderType == _selectedType).toList();
+        ? visibleRootFolders
+        : visibleRootFolders
+              .where((f) => f.folderType == _selectedType)
+              .toList();
 
     if (filteredFolders.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.folder_open, size: 60, color: Colors.white24),
+            Icon(Icons.folder_open, size: 60, color: _scheme.outline),
             SizedBox(height: 16),
             Text(
               'No folders matching "$_selectedType"',
-              style: TextStyle(color: Colors.white38),
+              style: TextStyle(color: _scheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -162,6 +186,10 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
   }
 
   Widget _buildFolderTile(Folder folder) {
+    final visibleSubFolders = folder.subFolders
+        .where((sub) => !_isHiddenType(sub.folderType))
+        .toList();
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12.0),
       child: GlassTheme.glassCard(
@@ -169,19 +197,26 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
         child: ExpansionTile(
           leading: Icon(
             _getFolderIcon(folder.folderType),
-            color: GlassTheme.accentColor,
+            color: _scheme.primary,
           ),
           title: Text(
             folder.name,
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: _scheme.onSurface,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           subtitle: Text(
             '${folder.gadgets.length} devices',
-            style: TextStyle(color: Colors.white70, fontSize: 12),
+            style: TextStyle(color: _scheme.onSurfaceVariant, fontSize: 12),
           ),
           trailing: PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, color: Colors.white38, size: 18),
-            color: Color(0xFF1E293B),
+            icon: Icon(
+              Icons.more_vert,
+              color: _scheme.onSurfaceVariant,
+              size: 18,
+            ),
+            color: _isDark ? const Color(0xFF1E293B) : Colors.white,
             onSelected: (val) {
               if (val == 'edit') _showEditFolderDialog(folder);
               if (val == 'delete') _showDeleteFolderDialog(folder);
@@ -191,9 +226,9 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
                 value: 'edit',
                 child: Row(
                   children: [
-                    Icon(Icons.edit, size: 16, color: Colors.white),
+                    Icon(Icons.edit, size: 16, color: _scheme.onSurface),
                     SizedBox(width: 8),
-                    Text('Edit', style: TextStyle(color: Colors.white)),
+                    Text('Edit', style: TextStyle(color: _scheme.onSurface)),
                   ],
                 ),
               ),
@@ -210,27 +245,30 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
             ],
           ),
           children: [
-            ...folder.subFolders.map((sub) => _buildFolderTile(sub)).toList(),
+            ...visibleSubFolders.map((sub) => _buildFolderTile(sub)).toList(),
             ...folder.gadgets
                 .map(
                   (gadget) => ListTile(
                     leading: Icon(
                       Icons.devices_other,
-                      color: Colors.white38,
+                      color: _scheme.onSurfaceVariant,
                       size: 20,
                     ),
                     title: Text(
                       gadget.name,
-                      style: TextStyle(color: Colors.white, fontSize: 14),
+                      style: TextStyle(color: _scheme.onSurface, fontSize: 14),
                     ),
                     subtitle: Text(
                       gadget.category,
-                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                      style: TextStyle(
+                        color: _scheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
                     ),
                     trailing: Icon(
                       Icons.arrow_forward_ios,
                       size: 12,
-                      color: Colors.white24,
+                      color: _scheme.outline,
                     ),
                     onTap: () {
                       Navigator.push(
@@ -250,9 +288,7 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
                 onPressed: () => _showCreateFolderDialog(parentId: folder.id),
                 icon: Icon(Icons.add, size: 16),
                 label: Text('New Subfolder', style: TextStyle(fontSize: 12)),
-                style: TextButton.styleFrom(
-                  foregroundColor: GlassTheme.accentColor,
-                ),
+                style: TextButton.styleFrom(foregroundColor: _scheme.primary),
               ),
             ),
           ],
@@ -266,35 +302,29 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
     String type = 'custom';
     bool isCustom = true;
 
-    final folderTypes = [
-      'custom',
-      'home',
-      'office',
-      'warranty',
-      'receipts',
-      'manuals',
-      'brand',
-      'category',
-    ];
+    final folderTypes = ['custom', 'home', 'office'];
 
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, dialogSetState) => AlertDialog(
-          backgroundColor: Color(0xFF1E293B),
-          title: Text('Create Folder', style: TextStyle(color: Colors.white)),
+          backgroundColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
+          title: Text(
+            'Create Folder',
+            style: TextStyle(color: _scheme.onSurface),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButton<String>(
                 value: type,
-                dropdownColor: Color(0xFF1E293B),
-                style: TextStyle(color: Colors.white),
-                items: folderTypes
+                dropdownColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
+                style: TextStyle(color: _scheme.onSurface),
+                items: ['custom', 'room', 'ownership']
                     .map(
                       (t) => DropdownMenuItem(
                         value: t,
-                        child: Text(t[0].toUpperCase() + t.substring(1)),
+                        child: Text(t.toUpperCase()),
                       ),
                     )
                     .toList(),
@@ -308,10 +338,10 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
               if (isCustom)
                 TextField(
                   onChanged: (v) => name = v,
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: _scheme.onSurface),
                   decoration: InputDecoration(
                     labelText: 'Folder Name',
-                    labelStyle: TextStyle(color: Colors.white60),
+                    labelStyle: TextStyle(color: _scheme.onSurfaceVariant),
                   ),
                 ),
             ],
@@ -360,16 +390,19 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, dialogSetState) => AlertDialog(
-          backgroundColor: Color(0xFF1E293B),
-          title: Text('Edit Folder', style: TextStyle(color: Colors.white)),
+          backgroundColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
+          title: Text(
+            'Edit Folder',
+            style: TextStyle(color: _scheme.onSurface),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButton<String>(
                 value: type,
-                dropdownColor: Color(0xFF1E293B),
-                style: TextStyle(color: Colors.white),
-                items: ['custom', 'room', 'category', 'brand', 'ownership']
+                dropdownColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
+                style: TextStyle(color: _scheme.onSurface),
+                items: ['custom', 'room', 'ownership']
                     .map(
                       (t) => DropdownMenuItem(
                         value: t,
@@ -387,10 +420,10 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
                 TextField(
                   controller: TextEditingController(text: name),
                   onChanged: (v) => name = v,
-                  style: TextStyle(color: Colors.white),
+                  style: TextStyle(color: _scheme.onSurface),
                   decoration: InputDecoration(
                     labelText: 'Folder Name',
-                    labelStyle: TextStyle(color: Colors.white60),
+                    labelStyle: TextStyle(color: _scheme.onSurfaceVariant),
                   ),
                 ),
             ],
@@ -433,11 +466,14 @@ class _FolderBrowserScreenState extends State<FolderBrowserScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Color(0xFF1E293B),
-        title: Text('Delete Folder?', style: TextStyle(color: Colors.white)),
+        backgroundColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
+        title: Text(
+          'Delete Folder?',
+          style: TextStyle(color: _scheme.onSurface),
+        ),
         content: Text(
           'This will delete the folder and its subfolders. Gadgets will remain but will be unassigned.',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: _scheme.onSurfaceVariant),
         ),
         actions: [
           TextButton(

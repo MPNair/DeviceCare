@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import '../models/gadget.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import '../themes/glass_theme.dart';
 import 'package:provider/provider.dart';
 import '../services/settings_provider.dart';
@@ -41,6 +42,9 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
 
   bool _hasRefreshed = false;
 
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  ColorScheme get _scheme => Theme.of(context).colorScheme;
+
   void _refreshGadget() async {
     try {
       final token = Provider.of<SettingsProvider>(
@@ -73,7 +77,12 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+              colors: _isDark
+                  ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
+                  : [
+                      _scheme.surface,
+                      _scheme.primaryContainer.withOpacity(0.32),
+                    ],
             ),
           ),
           child: CustomScrollView(
@@ -92,7 +101,9 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                     icon: Container(
                       padding: EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white12,
+                        color: _isDark
+                            ? Colors.white12
+                            : _scheme.surfaceContainerHighest,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(Icons.qr_code, size: 20),
@@ -103,7 +114,9 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                     icon: Container(
                       padding: EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white12,
+                        color: _isDark
+                            ? Colors.white12
+                            : _scheme.surfaceContainerHighest,
                         shape: BoxShape.circle,
                       ),
                       child: Icon(Icons.edit, size: 20),
@@ -158,7 +171,9 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                                 child: Icon(
                                   _getCategoryIcon(_currentGadget.category),
                                   size: 120,
-                                  color: GlassTheme.accentColor.withOpacity(0.4),
+                                  color: GlassTheme.accentColor.withOpacity(
+                                    0.4,
+                                  ),
                                 ),
                               ),
                             )
@@ -168,17 +183,30 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                                 PageView.builder(
                                   controller: _pageController,
                                   itemCount: _currentGadget.imageUrls.length,
-                                  onPageChanged: (index) => setState(() => _currentPage = index),
+                                  onPageChanged: (index) =>
+                                      setState(() => _currentPage = index),
                                   itemBuilder: (context, index) {
                                     final url = _currentGadget.imageUrls[index];
-                                    return (url.startsWith('http') || url.startsWith('https') || url.startsWith('blob:'))
+                                    return (url.startsWith('http') ||
+                                            url.startsWith('https') ||
+                                            url.startsWith('blob:'))
                                         ? Image.network(url, fit: BoxFit.cover)
-                                        : (kIsWeb 
-                                            ? Container(
-                                                color: Colors.white10, 
-                                                child: Center(child: Icon(Icons.image_not_supported, color: Colors.white24, size: 50))
-                                              )
-                                            : Image.file(File(url), fit: BoxFit.cover));
+                                        : (kIsWeb
+                                              ? Container(
+                                                  color: _scheme
+                                                      .surfaceContainerHighest,
+                                                  child: Center(
+                                                    child: Icon(
+                                                      Icons.image_not_supported,
+                                                      color: _scheme.outline,
+                                                      size: 50,
+                                                    ),
+                                                  ),
+                                                )
+                                              : Image.file(
+                                                  File(url),
+                                                  fit: BoxFit.cover,
+                                                ));
                                   },
                                 ),
                                 Positioned(
@@ -190,12 +218,16 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                                       (index) => Container(
                                         width: 8,
                                         height: 8,
-                                        margin: EdgeInsets.symmetric(horizontal: 4),
+                                        margin: EdgeInsets.symmetric(
+                                          horizontal: 4,
+                                        ),
                                         decoration: BoxDecoration(
                                           shape: BoxShape.circle,
-                                          color: _currentPage == index 
-                                              ? GlassTheme.accentColor 
-                                              : Colors.white.withOpacity(0.4),
+                                          color: _currentPage == index
+                                              ? GlassTheme.accentColor
+                                              : _scheme.outline.withOpacity(
+                                                  0.6,
+                                                ),
                                         ),
                                       ),
                                     ),
@@ -211,7 +243,8 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                             end: Alignment.bottomCenter,
                             colors: [
                               Colors.transparent,
-                              Colors.black.withOpacity(0.8),
+                              (_isDark ? Colors.black : _scheme.scrim)
+                                  .withOpacity(0.55),
                             ],
                           ),
                         ),
@@ -349,7 +382,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                                   Text(
                                     'Current Market Estimation',
                                     style: TextStyle(
-                                      color: Colors.white60,
+                                      color: _scheme.onSurfaceVariant,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -359,7 +392,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                             Container(
                               width: 1,
                               height: 60,
-                              color: Colors.white10,
+                              color: _scheme.outlineVariant,
                             ),
                             Expanded(
                               child: Column(
@@ -376,7 +409,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                                   Text(
                                     'Retention Rate',
                                     style: TextStyle(
-                                      color: Colors.white60,
+                                      color: _scheme.onSurfaceVariant,
                                       fontSize: 12,
                                     ),
                                   ),
@@ -414,7 +447,8 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
             final result = await Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => LogEntryScreen(gadgetId: _currentGadget.id),
+                builder: (context) =>
+                    LogEntryScreen(gadgetId: _currentGadget.id),
               ),
             );
             if (result == true) _refreshGadget();
@@ -458,12 +492,12 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
             ),
           ),
           SizedBox(width: 8),
-          Container(width: 1, height: 12, color: Colors.white24),
+          Container(width: 1, height: 12, color: _scheme.outline),
           SizedBox(width: 8),
           Text(
             _currentGadget.status.toUpperCase(),
             style: TextStyle(
-              color: Colors.white70,
+              color: _scheme.onSurfaceVariant,
               fontSize: 11,
               letterSpacing: 1,
             ),
@@ -493,14 +527,14 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
   Widget _buildSectionTitle(IconData icon, String title) {
     return Row(
       children: [
-        Icon(icon, size: 20, color: Colors.white70),
+        Icon(icon, size: 20, color: _scheme.onSurfaceVariant),
         SizedBox(width: 10),
         Text(
           title,
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: Colors.white,
+            color: _scheme.onSurface,
             letterSpacing: 0.5,
           ),
         ),
@@ -524,15 +558,18 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
             Icon(
               icon,
               size: 16,
-              color: isLink ? GlassTheme.accentColor : Colors.white38,
+              color: isLink ? GlassTheme.accentColor : _scheme.onSurfaceVariant,
             ),
             SizedBox(width: 10),
-            Text(label, style: TextStyle(color: Colors.white54, fontSize: 14)),
+            Text(
+              label,
+              style: TextStyle(color: _scheme.onSurfaceVariant, fontSize: 14),
+            ),
             Spacer(),
             Text(
               value,
               style: TextStyle(
-                color: isLink ? GlassTheme.accentColor : Colors.white,
+                color: isLink ? GlassTheme.accentColor : _scheme.onSurface,
                 fontWeight: FontWeight.w500,
                 fontSize: 14,
                 decoration: isLink ? TextDecoration.underline : null,
@@ -553,9 +590,12 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Color(0xFF1E293B),
+        backgroundColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Gadget QR Label', style: TextStyle(color: Colors.white)),
+        title: Text(
+          'Gadget QR Label',
+          style: TextStyle(color: _scheme.onSurface),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -575,13 +615,13 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
             Text(
               _currentGadget.name,
               style: TextStyle(
-                color: Colors.white,
+                color: _scheme.onSurface,
                 fontWeight: FontWeight.bold,
               ),
             ),
             Text(
               'SN: ${_currentGadget.serialNumber ?? 'N/A'}',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
+              style: TextStyle(color: _scheme.onSurfaceVariant, fontSize: 12),
             ),
           ],
         ),
@@ -600,7 +640,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
             label: Text('Print Label'),
             style: ElevatedButton.styleFrom(
               backgroundColor: GlassTheme.accentColor,
-              foregroundColor: Colors.white,
+              foregroundColor: _scheme.onPrimary,
             ),
           ),
         ],
@@ -612,12 +652,15 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Color(0xFF1E293B),
+        backgroundColor: _isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Text('Delete Gadget?', style: TextStyle(color: Colors.white)),
+        title: Text(
+          'Delete Gadget?',
+          style: TextStyle(color: _scheme.onSurface),
+        ),
         content: Text(
           'This will permanently remove the device and all history. Proceed?',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: _scheme.onSurfaceVariant),
         ),
         actions: [
           TextButton(
@@ -627,7 +670,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.redAccent,
-              foregroundColor: Colors.white,
+              foregroundColor: _scheme.onPrimary,
             ),
             child: Text('Delete'),
             onPressed: () async {
@@ -636,6 +679,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                 listen: false,
               ).authToken;
               await _apiService.deleteGadget(_currentGadget.id, token);
+              await NotificationService.syncSchedulesFromApi(context);
               Navigator.pop(context); // Close dialog
               Navigator.pop(context, true); // Go back to list with refresh
             },
@@ -654,19 +698,19 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.history, color: Colors.white10, size: 40),
+              Icon(Icons.history, color: _scheme.outlineVariant, size: 40),
               SizedBox(height: 12),
               Text(
                 'No service records found',
                 style: TextStyle(
-                  color: Colors.white24,
+                  color: _scheme.onSurfaceVariant,
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               Text(
                 'Keep your device value high by tracking repairs',
-                style: TextStyle(color: Colors.white10, fontSize: 11),
+                style: TextStyle(color: _scheme.outlineVariant, fontSize: 11),
               ),
             ],
           ),
@@ -693,7 +737,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                         child: Text(
                           log.serviceType,
                           style: TextStyle(
-                            color: Colors.white,
+                            color: _scheme.onSurface,
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                           ),
@@ -715,7 +759,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                     Text(
                       log.description!,
                       style: TextStyle(
-                        color: Colors.white70,
+                        color: _scheme.onSurfaceVariant,
                         fontSize: 13,
                         height: 1.4,
                       ),
@@ -727,24 +771,30 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                       Icon(
                         Icons.calendar_today,
                         size: 12,
-                        color: Colors.white38,
+                        color: _scheme.onSurfaceVariant,
                       ),
                       SizedBox(width: 6),
                       Text(
                         dateFormat.format(log.serviceDate),
-                        style: TextStyle(color: Colors.white38, fontSize: 12),
+                        style: TextStyle(
+                          color: _scheme.onSurfaceVariant,
+                          fontSize: 12,
+                        ),
                       ),
                       if (log.technicianDetails != null) ...[
                         SizedBox(width: 16),
                         Icon(
                           Icons.person_outline,
                           size: 12,
-                          color: Colors.white38,
+                          color: _scheme.onSurfaceVariant,
                         ),
                         SizedBox(width: 6),
                         Text(
                           log.technicianDetails!,
-                          style: TextStyle(color: Colors.white38, fontSize: 12),
+                          style: TextStyle(
+                            color: _scheme.onSurfaceVariant,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ],
@@ -798,7 +848,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                 Icons.check_circle_outline,
                 'Device Status',
                 'Your device is in a stable value retention phase.',
-                Colors.white70,
+                _scheme.onSurfaceVariant,
               ),
             SizedBox(height: 15),
             ElevatedButton.icon(
@@ -809,7 +859,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
               label: Text('Check Marketplace Quotes'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: GlassTheme.accentColor.withOpacity(0.2),
-                foregroundColor: Colors.white,
+                foregroundColor: _scheme.onSurface,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),
@@ -847,7 +897,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
               SizedBox(height: 4),
               Text(
                 message,
-                style: TextStyle(color: Colors.white70, fontSize: 12),
+                style: TextStyle(color: _scheme.onSurfaceVariant, fontSize: 12),
               ),
             ],
           ),
@@ -871,24 +921,34 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
         final doc = _currentGadget.documents[index];
         final String url = doc['url'] ?? '';
         final String name = doc['name'] ?? (url.split(RegExp(r'[/\\]')).last);
-        
+
         return InkWell(
           onTap: () => _openUrl(url),
           child: Container(
             padding: EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: _isDark ? Colors.white.withOpacity(0.05) : Colors.white,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white10),
+              border: Border.all(
+                color: _scheme.outlineVariant.withOpacity(0.65),
+              ),
             ),
             child: Row(
               children: [
-                Icon(Icons.insert_drive_file_outlined, color: GlassTheme.accentColor, size: 20),
+                Icon(
+                  Icons.insert_drive_file_outlined,
+                  color: GlassTheme.accentColor,
+                  size: 20,
+                ),
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     name,
-                    style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+                    style: TextStyle(
+                      color: _scheme.onSurface,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -924,7 +984,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
     } else if (category.contains('watch')) {
       baseUrl = 'https://www.cashify.in/sell-old-smart-watch';
     } else if (category.contains('camera')) {
-       baseUrl = 'https://www.cashify.in/sell-old-camera';
+      baseUrl = 'https://www.cashify.in/sell-old-camera';
     }
 
     // Try to construct a direct slug if enough info is present
@@ -933,15 +993,20 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
       String slug = 'used-$brand-$model';
       if (storage.isNotEmpty) slug += '-$storage';
       if (color.isNotEmpty) slug += '-$color';
-      
+
       // Attempt direct URL
       url = Uri.tryParse('$baseUrl/$slug');
     } else {
       // Fallback to search if not enough info
-      final query = [brand, model, storage, color].where((s) => s.isNotEmpty).join('+');
+      final query = [
+        brand,
+        model,
+        storage,
+        color,
+      ].where((s) => s.isNotEmpty).join('+');
       url = Uri.tryParse('$baseUrl/search?q=$query');
     }
-    
+
     if (url != null) {
       launchUrl(url, mode: LaunchMode.externalApplication);
     } else {

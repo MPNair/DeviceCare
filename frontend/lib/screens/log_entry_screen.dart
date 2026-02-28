@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
+import '../services/notification_service.dart';
 import '../services/settings_provider.dart';
 
 class LogEntryScreen extends StatefulWidget {
@@ -15,17 +16,23 @@ class LogEntryScreen extends StatefulWidget {
 class _LogEntryScreenState extends State<LogEntryScreen> {
   final _apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
-  
+
   final _typeController = TextEditingController();
   final _descController = TextEditingController();
   final _costController = TextEditingController(text: '0.0');
 
+  bool get _isDark => Theme.of(context).brightness == Brightness.dark;
+  ColorScheme get _scheme => Theme.of(context).colorScheme;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Color(0xFF0F172A),
+      backgroundColor: _isDark ? const Color(0xFF0F172A) : _scheme.surface,
       appBar: AppBar(
-        title: Text('Add Service Record', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(
+          'Add Service Record',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
@@ -38,26 +45,45 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
             children: [
               Text(
                 'Create a maintenance log to track repairs and value',
-                style: TextStyle(color: Colors.white60, fontSize: 14),
+                style: TextStyle(color: _scheme.onSurfaceVariant, fontSize: 14),
               ),
               SizedBox(height: 30),
-              _buildTextField(_typeController, 'Service Type (e.g. Screen Repair)', Icons.build_circle_outlined),
+              _buildTextField(
+                _typeController,
+                'Service Type (e.g. Screen Repair)',
+                Icons.build_circle_outlined,
+              ),
               SizedBox(height: 20),
-              _buildTextField(_descController, 'Detailed Description', Icons.notes_outlined, maxLines: 4),
+              _buildTextField(
+                _descController,
+                'Detailed Description',
+                Icons.notes_outlined,
+                maxLines: 4,
+              ),
               SizedBox(height: 20),
-              _buildTextField(_costController, 'Service Cost', Icons.account_balance_wallet_outlined, keyboardType: TextInputType.number),
+              _buildTextField(
+                _costController,
+                'Service Cost',
+                Icons.account_balance_wallet_outlined,
+                keyboardType: TextInputType.number,
+              ),
               SizedBox(height: 40),
               ElevatedButton(
                 onPressed: _submitForm,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color(0xFF6C63FF),
-                  foregroundColor: Colors.white,
+                  backgroundColor: _scheme.primary,
+                  foregroundColor: _scheme.onPrimary,
                   minimumSize: Size(double.infinity, 56),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   elevation: 8,
-                  shadowColor: Color(0xFF6C63FF).withOpacity(0.4),
+                  shadowColor: _scheme.primary.withOpacity(0.4),
                 ),
-                child: Text('Save Service Record', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'Save Service Record',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
@@ -66,29 +92,49 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {TextInputType? keyboardType, int maxLines = 1}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    TextInputType? keyboardType,
+    int maxLines = 1,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500)),
+        Text(
+          label,
+          style: TextStyle(
+            color: _scheme.onSurfaceVariant,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
         SizedBox(height: 8),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
-          style: TextStyle(color: Colors.white),
+          style: TextStyle(color: _scheme.onSurface),
           decoration: InputDecoration(
-            prefixIcon: Icon(icon, color: Color(0xFF00D2FF), size: 20),
+            prefixIcon: Icon(icon, color: _scheme.primary, size: 20),
             filled: true,
-            fillColor: Colors.white.withOpacity(0.05),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            fillColor: _isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide.none,
+            ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Color(0xFF00D2FF).withOpacity(0.5), width: 1),
+              borderSide: BorderSide(
+                color: _scheme.primary.withOpacity(0.6),
+                width: 1,
+              ),
             ),
             contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
-          validator: (value) => value == null || value.isEmpty ? 'This field is required' : null,
+          validator: (value) =>
+              value == null || value.isEmpty ? 'This field is required' : null,
         ),
       ],
     );
@@ -105,8 +151,14 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
           'serviceDate': DateTime.now().toIso8601String().split('T')[0],
         };
 
-        await _apiService.createMaintenanceLog(widget.gadgetId, logData, settings.authToken);
-        
+        await _apiService.createMaintenanceLog(
+          widget.gadgetId,
+          logData,
+          settings.authToken,
+        );
+
+        await NotificationService.syncSchedulesFromApi(context);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -119,10 +171,7 @@ class _LogEntryScreenState extends State<LogEntryScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $e'),
-              backgroundColor: Colors.red,
-            ),
+            SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
           );
         }
       }

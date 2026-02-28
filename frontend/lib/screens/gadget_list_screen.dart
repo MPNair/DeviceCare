@@ -13,7 +13,7 @@ import 'dart:io';
 
 class GadgetListScreen extends StatefulWidget {
   const GadgetListScreen({Key? key}) : super(key: key);
-  
+
   @override
   GadgetListScreenState createState() => GadgetListScreenState();
 }
@@ -29,7 +29,10 @@ class GadgetListScreenState extends State<GadgetListScreen> {
   }
 
   void refreshGadgets() {
-    final token = Provider.of<SettingsProvider>(context, listen: false).authToken;
+    final token = Provider.of<SettingsProvider>(
+      context,
+      listen: false,
+    ).authToken;
     setState(() {
       _gadgetsFuture = _apiService.getGadgets(token);
     });
@@ -37,9 +40,12 @@ class GadgetListScreenState extends State<GadgetListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('My Gadgets'),
+        title: Text('My Gadgets', style: TextStyle(color: scheme.onSurface)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -48,10 +54,7 @@ class GadgetListScreenState extends State<GadgetListScreen> {
             tooltip: 'Scan to Add',
             onPressed: _scanToAdd,
           ),
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: refreshGadgets,
-          )
+          IconButton(icon: Icon(Icons.refresh), onPressed: refreshGadgets),
         ],
       ),
       body: Container(
@@ -59,7 +62,9 @@ class GadgetListScreenState extends State<GadgetListScreen> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+            colors: isDark
+                ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
+                : [scheme.surface, scheme.primaryContainer.withOpacity(0.3)],
           ),
         ),
         child: FutureBuilder<List<Gadget>>(
@@ -72,7 +77,11 @@ class GadgetListScreenState extends State<GadgetListScreen> {
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
-                  child: Text('Error: ${snapshot.error}', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+                  child: Text(
+                    'Error: ${snapshot.error}',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
                 ),
               );
             }
@@ -81,9 +90,16 @@ class GadgetListScreenState extends State<GadgetListScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.inventory_2_outlined, size: 60, color: Colors.white24),
+                    Icon(
+                      Icons.inventory_2_outlined,
+                      size: 60,
+                      color: scheme.outline,
+                    ),
                     SizedBox(height: 15),
-                    Text('No gadgets found. Add one!', style: TextStyle(color: Colors.white54)),
+                    Text(
+                      'No gadgets found. Add one!',
+                      style: TextStyle(color: scheme.onSurfaceVariant),
+                    ),
                   ],
                 ),
               );
@@ -100,13 +116,17 @@ class GadgetListScreenState extends State<GadgetListScreen> {
                     gadget: gadget,
                     onTap: () async {
                       final result = await Navigator.push(
-                        context, 
-                        MaterialPageRoute(builder: (context) => GadgetDetailScreen(gadget: gadget))
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              GadgetDetailScreen(gadget: gadget),
+                        ),
                       );
                       if (result == true) {
                         refreshGadgets();
                         // Refresh dashboard when gadget is edited/deleted
-                        final mainNav = context.findAncestorStateOfType<MainNavigationState>();
+                        final mainNav = context
+                            .findAncestorStateOfType<MainNavigationState>();
                         mainNav?.refreshAllScreens();
                       }
                     },
@@ -120,18 +140,19 @@ class GadgetListScreenState extends State<GadgetListScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final result = await Navigator.push(
-            context, 
-            MaterialPageRoute(builder: (context) => AddGadgetScreen())
+            context,
+            MaterialPageRoute(builder: (context) => AddGadgetScreen()),
           );
           if (result == true) {
             refreshGadgets();
             // Notify parent MainNavigation to refresh dashboard too
-            final mainNav = context.findAncestorStateOfType<MainNavigationState>();
+            final mainNav = context
+                .findAncestorStateOfType<MainNavigationState>();
             mainNav?.refreshAllScreens();
           }
         },
         child: Icon(Icons.add),
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: scheme.primary,
       ),
     );
   }
@@ -142,7 +163,9 @@ class GadgetListScreenState extends State<GadgetListScreen> {
       if (!mounted) return;
       final result = await Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => AddGadgetScreen(initialSerialNumber: code)),
+        MaterialPageRoute(
+          builder: (context) => AddGadgetScreen(initialSerialNumber: code),
+        ),
       );
       if (result == true) refreshGadgets();
     }

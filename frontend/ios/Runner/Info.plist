@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>DeviceCare uses notifications to remind you about warranty expiry and scheduled maintenance.</string>
 </dict>
 </plist>

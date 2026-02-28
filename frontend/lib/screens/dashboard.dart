@@ -8,7 +8,7 @@ import 'gadget_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({Key? key}) : super(key: key);
-  
+
   @override
   DashboardScreenState createState() => DashboardScreenState();
 }
@@ -20,12 +20,18 @@ class DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    final token = Provider.of<SettingsProvider>(context, listen: false).authToken;
+    final token = Provider.of<SettingsProvider>(
+      context,
+      listen: false,
+    ).authToken;
     _analyticsFuture = _apiService.getAnalytics(token);
   }
-  
+
   void refreshAnalytics() {
-    final token = Provider.of<SettingsProvider>(context, listen: false).authToken;
+    final token = Provider.of<SettingsProvider>(
+      context,
+      listen: false,
+    ).authToken;
     setState(() {
       _analyticsFuture = _apiService.getAnalytics(token);
     });
@@ -35,22 +41,25 @@ class DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     final settings = Provider.of<SettingsProvider>(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: isDark 
-              ? [Color(0xFF0F172A), Color(0xFF1E293B)]
-              : [Color(0xFFE2E8F0), Color(0xFFF8FAFC)],
+            colors: isDark
+                ? [Color(0xFF0F172A), Color(0xFF1E293B)]
+                : [scheme.surface, scheme.primaryContainer.withOpacity(0.32)],
           ),
         ),
         child: SafeArea(
           child: RefreshIndicator(
             onRefresh: () async {
-               setState(() { _analyticsFuture = _apiService.getAnalytics(settings.authToken); });
+              setState(() {
+                _analyticsFuture = _apiService.getAnalytics(settings.authToken);
+              });
             },
             child: CustomScrollView(
               slivers: [
@@ -62,27 +71,37 @@ class DashboardScreenState extends State<DashboardScreen> {
                       children: [
                         Text(
                           'Digital Log',
-                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87),
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: scheme.onSurface,
+                          ),
                         ),
                         SizedBox(height: 10),
                         Text(
                           'Maintenance & Resale Tracking',
-                          style: TextStyle(color: isDark ? Colors.white70 : Colors.black54),
+                          style: TextStyle(color: scheme.onSurfaceVariant),
                         ),
                         SizedBox(height: 30),
                         FutureBuilder<Map<String, dynamic>>(
                           future: _analyticsFuture,
                           builder: (context, snapshot) {
-                            if (snapshot.connectionState == ConnectionState.waiting) {
+                            if (snapshot.connectionState ==
+                                ConnectionState.waiting) {
                               return Center(child: CircularProgressIndicator());
                             }
                             if (snapshot.hasError) {
-                              return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: Colors.redAccent)));
+                              return Center(
+                                child: Text(
+                                  'Error: ${snapshot.error}',
+                                  style: TextStyle(color: Colors.redAccent),
+                                ),
+                              );
                             }
-                            
+
                             final summary = snapshot.data!['summary'];
                             final trends = snapshot.data!['marketTrends'];
-                            
+
                             return Column(
                               children: [
                                 GlassTheme.glassCard(
@@ -91,36 +110,90 @@ class DashboardScreenState extends State<DashboardScreen> {
                                   child: Padding(
                                     padding: EdgeInsets.all(20),
                                     child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceAround,
                                       children: [
-                                        _buildStatRow('Total Value', '${settings.currencySymbol}${summary['totalCurrentValue'].toStringAsFixed(2)}', GlassTheme.accentColor, isDark),
-                                        _buildStatRow('Avg Retention', '${summary['averageRetentionRate'] ?? 0}%', Colors.greenAccent, isDark),
-                                        _buildStatRow('Total Gadgets', summary['totalGadgets'].toString(), isDark ? Colors.white : Colors.black87, isDark),
-                                        _buildStatRow('Maintenance Load', '${summary['maintenanceLoad'] ?? 0}%', Colors.orange, isDark),
+                                        _buildStatRow(
+                                          'Total Value',
+                                          '${settings.currencySymbol}${summary['totalCurrentValue'].toStringAsFixed(2)}',
+                                          GlassTheme.accentColor,
+                                          isDark,
+                                        ),
+                                        _buildStatRow(
+                                          'Avg Retention',
+                                          '${summary['averageRetentionRate'] ?? 0}%',
+                                          Colors.greenAccent,
+                                          isDark,
+                                        ),
+                                        _buildStatRow(
+                                          'Total Gadgets',
+                                          summary['totalGadgets'].toString(),
+                                          scheme.onSurface,
+                                          isDark,
+                                        ),
+                                        _buildStatRow(
+                                          'Maintenance Load',
+                                          '${summary['maintenanceLoad'] ?? 0}%',
+                                          Colors.orange,
+                                          isDark,
+                                        ),
                                       ],
                                     ),
                                   ),
                                 ),
                                 SizedBox(height: 25),
-                                ..._buildUpcomingAlerts(snapshot.data!['upcomingDeadlines'], isDark),
+                                ..._buildUpcomingAlerts(
+                                  snapshot.data!['upcomingDeadlines'],
+                                  isDark,
+                                ),
                                 SizedBox(height: 25),
-                                ...trends != null ? [
-                                  Text('Market Insights', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
-                                  SizedBox(height: 15),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _buildTrendCard(context, 'Demand', '${trends['demandShift']}%', double.parse(trends['demandShift'].toString()) > 0, isDark),
-                                      ),
-                                      SizedBox(width: 15),
-                                      Expanded(
-                                        child: _buildTrendCard(context, 'Sustainability', trends['sustainabilityScore'].toString(), true, isDark),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 25),
-                                ] : [],
-                                _buildCategoryDistribution(context, snapshot.data!['categoryDistribution'], isDark),
+                                ...trends != null
+                                    ? [
+                                        Text(
+                                          'Market Insights',
+                                          style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: scheme.onSurface,
+                                          ),
+                                        ),
+                                        SizedBox(height: 15),
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: _buildTrendCard(
+                                                context,
+                                                'Demand',
+                                                '${trends['demandShift']}%',
+                                                double.parse(
+                                                      trends['demandShift']
+                                                          .toString(),
+                                                    ) >
+                                                    0,
+                                                isDark,
+                                              ),
+                                            ),
+                                            SizedBox(width: 15),
+                                            Expanded(
+                                              child: _buildTrendCard(
+                                                context,
+                                                'Sustainability',
+                                                trends['sustainabilityScore']
+                                                    .toString(),
+                                                true,
+                                                isDark,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        SizedBox(height: 25),
+                                      ]
+                                    : [],
+                                _buildCategoryDistribution(
+                                  context,
+                                  snapshot.data!['categoryDistribution'],
+                                  isDark,
+                                ),
                                 SizedBox(height: 50),
                               ],
                             );
@@ -142,13 +215,32 @@ class DashboardScreenState extends State<DashboardScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 16)),
-        Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(
+          label,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            fontSize: 16,
+          ),
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildTrendCard(BuildContext context, String label, String value, bool positive, bool isDark) {
+  Widget _buildTrendCard(
+    BuildContext context,
+    String label,
+    String value,
+    bool positive,
+    bool isDark,
+  ) {
     return GlassTheme.glassCard(
       context: context,
       height: 90,
@@ -158,39 +250,83 @@ class DashboardScreenState extends State<DashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(positive ? Icons.trending_up : Icons.trending_down, color: positive ? Colors.greenAccent : Colors.redAccent, size: 20),
+              Icon(
+                positive ? Icons.trending_up : Icons.trending_down,
+                color: positive ? Colors.greenAccent : Colors.redAccent,
+                size: 20,
+              ),
               SizedBox(width: 5),
-              Text(value, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 20, fontWeight: FontWeight.bold)),
+              Text(
+                value,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
-          Text(label, style: TextStyle(color: isDark ? Colors.white60 : Colors.black54, fontSize: 12)),
+          Text(
+            label,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildCategoryDistribution(BuildContext context, Map<String, dynamic> data, bool isDark) {
+  Widget _buildCategoryDistribution(
+    BuildContext context,
+    Map<String, dynamic> data,
+    bool isDark,
+  ) {
     if (data.isEmpty) return Container();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Category Distribution', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+        Text(
+          'Category Distribution',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
         SizedBox(height: 15),
         GlassTheme.glassCard(
           context: context,
           height: 150,
           child: ListView(
-             padding: EdgeInsets.all(15),
-             children: data.entries.map((e) => Padding(
-               padding: const EdgeInsets.symmetric(vertical: 4.0),
-               child: Row(
-                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                 children: [
-                   Text(e.key, style: TextStyle(color: isDark ? Colors.white70 : Colors.black54)),
-                   Text('${e.value} devices', style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
-                 ],
-               ),
-             )).toList(),
+            padding: EdgeInsets.all(15),
+            children: data.entries
+                .map(
+                  (e) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          e.key,
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        Text(
+                          '${e.value} devices',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ),
       ],
@@ -199,15 +335,25 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   List<Widget> _buildUpcomingAlerts(List<dynamic>? deadlines, bool isDark) {
     if (deadlines == null || deadlines.isEmpty) return [];
-    
+
     return [
-      Text('Critical Alerts', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
+      Text(
+        'Critical Alerts',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
       SizedBox(height: 15),
       ...deadlines.map((d) {
         final type = d['type'];
-        final color = type == 'maintenance_alert' ? Colors.orangeAccent : 
-                      (type == 'resale_opportunity' ? Colors.greenAccent : Colors.blueAccent);
-        
+        final color = type == 'maintenance_alert'
+            ? Colors.orangeAccent
+            : (type == 'resale_opportunity'
+                  ? Colors.greenAccent
+                  : Colors.blueAccent);
+
         return Padding(
           padding: const EdgeInsets.only(bottom: 12.0),
           child: GlassTheme.glassCard(
@@ -217,9 +363,27 @@ class DashboardScreenState extends State<DashboardScreen> {
                 backgroundColor: color.withOpacity(0.2),
                 child: Icon(_getAlertIcon(type), color: color, size: 20),
               ),
-              title: Text(d['gadgetName'], style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              subtitle: Text(d['message'] ?? (type == 'warranty' ? 'Warranty expires in ${d['daysLeft']} days' : ''), style: TextStyle(color: Colors.white70, fontSize: 12)),
-              trailing: Icon(Icons.chevron_right, color: Colors.white24),
+              title: Text(
+                d['gadgetName'],
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                d['message'] ??
+                    (type == 'warranty'
+                        ? 'Warranty expires in ${d['daysLeft']} days'
+                        : ''),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 12,
+                ),
+              ),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: Theme.of(context).colorScheme.outline,
+              ),
               onTap: () => _navigateToGadget(d['gadgetId']),
             ),
           ),
@@ -230,25 +394,36 @@ class DashboardScreenState extends State<DashboardScreen> {
 
   void _navigateToGadget(String id) async {
     try {
-      final token = Provider.of<SettingsProvider>(context, listen: false).authToken;
+      final token = Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      ).authToken;
       final gadget = await _apiService.getGadgetById(id, token);
       if (mounted) {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => GadgetDetailScreen(gadget: gadget)),
+          MaterialPageRoute(
+            builder: (context) => GadgetDetailScreen(gadget: gadget),
+          ),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not open gadget: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not open gadget: $e')));
     }
   }
 
   IconData _getAlertIcon(String type) {
     switch (type) {
-      case 'maintenance_alert': return Icons.warning_rounded;
-      case 'resale_opportunity': return Icons.shopping_cart_checkout_rounded;
-      case 'warranty': return Icons.verified_user_rounded;
-      default: return Icons.notifications_active_rounded;
+      case 'maintenance_alert':
+        return Icons.warning_rounded;
+      case 'resale_opportunity':
+        return Icons.shopping_cart_checkout_rounded;
+      case 'warranty':
+        return Icons.verified_user_rounded;
+      default:
+        return Icons.notifications_active_rounded;
     }
   }
 }
