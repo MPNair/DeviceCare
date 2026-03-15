@@ -7,7 +7,7 @@ class ScannerService {
       print('Scanner is not supported on Web. Defaulting to manual entry.');
       return null;
     }
-    
+
     try {
       var result = await BarcodeScanner.scan();
       if (result.type == ResultType.Barcode) {

@@ -89,7 +89,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
             physics: BouncingScrollPhysics(),
             slivers: [
               SliverAppBar(
-                expandedHeight: 320,
+                expandedHeight: 120, // Reduced from 320
                 pinned: true,
                 stretch: true,
                 leading: IconButton(
@@ -161,96 +161,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                       shadows: [Shadow(color: Colors.black45, blurRadius: 10)],
                     ),
                   ),
-                  background: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      _currentGadget.imageUrls.isEmpty
-                          ? Center(
-                              child: Hero(
-                                tag: 'gadget_${_currentGadget.id}',
-                                child: Icon(
-                                  _getCategoryIcon(_currentGadget.category),
-                                  size: 120,
-                                  color: GlassTheme.accentColor.withOpacity(
-                                    0.4,
-                                  ),
-                                ),
-                              ),
-                            )
-                          : Stack(
-                              alignment: Alignment.bottomCenter,
-                              children: [
-                                PageView.builder(
-                                  controller: _pageController,
-                                  itemCount: _currentGadget.imageUrls.length,
-                                  onPageChanged: (index) =>
-                                      setState(() => _currentPage = index),
-                                  itemBuilder: (context, index) {
-                                    final url = _currentGadget.imageUrls[index];
-                                    return (url.startsWith('http') ||
-                                            url.startsWith('https') ||
-                                            url.startsWith('blob:'))
-                                        ? Image.network(url, fit: BoxFit.cover)
-                                        : (kIsWeb
-                                              ? Container(
-                                                  color: _scheme
-                                                      .surfaceContainerHighest,
-                                                  child: Center(
-                                                    child: Icon(
-                                                      Icons.image_not_supported,
-                                                      color: _scheme.outline,
-                                                      size: 50,
-                                                    ),
-                                                  ),
-                                                )
-                                              : Image.file(
-                                                  File(url),
-                                                  fit: BoxFit.cover,
-                                                ));
-                                  },
-                                ),
-                                Positioned(
-                                  bottom: 60,
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: List.generate(
-                                      _currentGadget.imageUrls.length,
-                                      (index) => Container(
-                                        width: 8,
-                                        height: 8,
-                                        margin: EdgeInsets.symmetric(
-                                          horizontal: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: _currentPage == index
-                                              ? GlassTheme.accentColor
-                                              : _scheme.outline.withOpacity(
-                                                  0.6,
-                                                ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                      // Overlay for better text visibility
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              (_isDark ? Colors.black : _scheme.scrim)
-                                  .withOpacity(0.55),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  // Background removed entirely for standard top bar
                 ),
                 backgroundColor: Colors.transparent,
               ),
@@ -262,6 +173,16 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                     children: [
                       _buildConditionBadge(),
                       SizedBox(height: 25),
+
+                      if (_currentGadget.imageUrls.isNotEmpty) ...[
+                        _buildSectionTitle(
+                          Icons.photo_library_outlined,
+                          'Gallery',
+                        ),
+                        SizedBox(height: 12),
+                        _buildGallery(),
+                        SizedBox(height: 25),
+                      ],
 
                       _buildSectionTitle(Icons.info_outline, 'Device Profile'),
                       SizedBox(height: 12),
@@ -419,6 +340,13 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                           ],
                         ),
                       ),
+
+                      _buildSectionTitle(
+                        Icons.notifications_active_outlined,
+                        'Custom Notifications',
+                      ),
+                      SizedBox(height: 12),
+                      _buildCustomNotificationsCard(settings),
 
                       _buildSectionTitle(
                         Icons.insights_rounded,
@@ -581,12 +509,45 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
     );
   }
 
-  void _openUrl(String url) {
-    print('Opening URL: $url');
-    // In real app, use url_launcher
+  void _openUrl(String url) async {
+    final fullUrl = url.startsWith('/uploads')
+        ? '${ApiService.hostUrl}$url'
+        : url;
+    final uri = Uri.parse(fullUrl);
+
+    if (url.startsWith('http') ||
+        url.startsWith('https') ||
+        url.startsWith('/uploads')) {
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not launch document URL')),
+        );
+      }
+    } else {
+      // Handle local file
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Opening local file: $url')));
+    }
   }
 
   void _showLabelDialog() {
+    // Unique, human-readable payload so scanning shows device name, model, storage
+    final name = _currentGadget.name;
+    final model = _currentGadget.model ?? 'N/A';
+    final storage = _currentGadget.storageCapacity ?? 'N/A';
+    final serial = _currentGadget.serialNumber ?? 'N/A';
+    final qrText =
+        'DeviceCare\n'
+        'Name: $name\n'
+        'Model: $model\n'
+        'Storage: $storage\n'
+        'Serial: $serial\n'
+        'ID: ${_currentGadget.id}';
+    final qrDataEncoded = Uri.encodeComponent(qrText);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -606,7 +567,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Image.network(
-                'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://devicecare.io/app/gadget/${_currentGadget.id}',
+                'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=$qrDataEncoded',
                 width: 150,
                 height: 150,
               ),
@@ -856,7 +817,7 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
                 _launchMarketplace();
               },
               icon: Icon(Icons.outbound_rounded),
-              label: Text('Check Marketplace Quotes'),
+              label: Text('Check Quotes on Cashify.in'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: GlassTheme.accentColor.withOpacity(0.2),
                 foregroundColor: _scheme.onSurface,
@@ -903,6 +864,272 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCustomNotificationsCard(SettingsProvider settings) {
+    final deviceName = _currentGadget.name;
+    final remindersForDevice = settings.customReminders
+        .where((r) => r.deviceName == deviceName)
+        .toList();
+
+    return GlassTheme.glassCard(
+      context: context,
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ElevatedButton.icon(
+              onPressed: () => _showScheduleDialog(settings),
+              icon: Icon(Icons.add_alarm),
+              label: Text('Schedule notification'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: GlassTheme.accentColor.withOpacity(0.2),
+                foregroundColor: _scheme.onSurface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+            if (remindersForDevice.isNotEmpty) ...[
+              SizedBox(height: 12),
+              Text(
+                'Scheduled reminders',
+                style: TextStyle(
+                  color: _scheme.onSurfaceVariant,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 8),
+              ...remindersForDevice.map((r) {
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    DateFormat('yMMMd • HH:mm').format(r.date),
+                    style: TextStyle(color: _scheme.onSurface, fontSize: 13),
+                  ),
+                  trailing: IconButton(
+                    icon: Icon(Icons.delete_outline, color: Colors.redAccent),
+                    onPressed: () async {
+                      await settings.removeCustomReminder(r.deviceName, r.date);
+                      await NotificationService.cancelCustomNotification(
+                        r.deviceName,
+                        r.date,
+                      );
+                      setState(() {});
+                    },
+                  ),
+                );
+              }),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showScheduleDialog(SettingsProvider settings) {
+    final parentContext = context;
+    final deviceName = _currentGadget.name;
+    DateTime? localScheduledDate;
+    TimeOfDay? localScheduledTime = TimeOfDay.now();
+    bool localRepeat = false;
+    bool isScheduling = false;
+
+    showDialog(
+      context: parentContext,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: Text('Schedule notification'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.calendar_today),
+                    title: Text(
+                      localScheduledDate == null
+                          ? 'Select date'
+                          : DateFormat('yMMMd').format(localScheduledDate!),
+                    ),
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: dialogContext,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime.now().add(Duration(days: 365)),
+                      );
+                      if (date != null) {
+                        setDialogState(() => localScheduledDate = date);
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.access_time),
+                    title: Text(
+                      localScheduledTime == null
+                          ? 'Select time'
+                          : localScheduledTime!.format(dialogContext),
+                    ),
+                    onTap: () async {
+                      final time = await showTimePicker(
+                        context: dialogContext,
+                        initialTime: TimeOfDay.now(),
+                      );
+                      if (time != null) {
+                        setDialogState(() => localScheduledTime = time);
+                      }
+                    },
+                  ),
+                  CheckboxListTile(
+                    value: localRepeat,
+                    onChanged: (v) =>
+                        setDialogState(() => localRepeat = v ?? false),
+                    title: Text('Repeat daily'),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isScheduling
+                      ? null
+                      : () => Navigator.of(dialogContext).pop(),
+                  child: Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isScheduling
+                      ? null
+                      : () async {
+                          if (localScheduledDate == null ||
+                              localScheduledTime == null) {
+                            ScaffoldMessenger.of(parentContext).showSnackBar(
+                              SnackBar(content: Text('Select date and time.')),
+                            );
+                            return;
+                          }
+                          final scheduledDateTime = DateTime(
+                            localScheduledDate!.year,
+                            localScheduledDate!.month,
+                            localScheduledDate!.day,
+                            localScheduledTime!.hour,
+                            localScheduledTime!.minute,
+                          );
+                          if (scheduledDateTime.isBefore(DateTime.now())) {
+                            ScaffoldMessenger.of(parentContext).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Please choose a future date and time.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          setDialogState(() => isScheduling = true);
+                          try {
+                            await NotificationService.addCustomReminderToCalendar(
+                              parentContext,
+                              scheduledDateTime,
+                              deviceName,
+                              repeat: localRepeat,
+                            );
+                            await NotificationService.scheduleDeviceNotification(
+                              parentContext,
+                              scheduledDateTime,
+                              repeat: localRepeat,
+                              deviceName: deviceName,
+                            );
+                          } catch (e) {
+                            setDialogState(() => isScheduling = false);
+                            if (parentContext.mounted) {
+                              ScaffoldMessenger.of(parentContext).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Could not schedule: ${e.toString()}',
+                                  ),
+                                ),
+                              );
+                            }
+                            return;
+                          }
+                          if (parentContext.mounted) {
+                            Navigator.of(dialogContext).pop();
+                            setState(() {});
+                            ScaffoldMessenger.of(parentContext).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Reminder scheduled for $deviceName on ${DateFormat('yMMMd').add_jm().format(scheduledDateTime)}.',
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                  child: isScheduling
+                      ? SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text('Schedule'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildGallery() {
+    return SizedBox(
+      height: 120,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        physics: BouncingScrollPhysics(),
+        itemCount: _currentGadget.imageUrls.length,
+        itemBuilder: (context, index) {
+          final url = _currentGadget.imageUrls[index];
+          return GestureDetector(
+            onTap: () => _showMediaViewer(index),
+            child: Container(
+              width: 120,
+              margin: EdgeInsets.only(right: 12),
+              decoration: BoxDecoration(
+                color: _isDark ? Colors.white.withOpacity(0.05) : Colors.white,
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(
+                  color: _scheme.outlineVariant.withOpacity(0.65),
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child:
+                    (url.startsWith('http') ||
+                        url.startsWith('https') ||
+                        url.startsWith('blob:'))
+                    ? Image.network(url, fit: BoxFit.cover)
+                    : (url.startsWith('/uploads')
+                          ? Image.network(
+                              '${ApiService.hostUrl}$url',
+                              fit: BoxFit.cover,
+                            )
+                          : (kIsWeb
+                                ? Container(
+                                    color: _scheme.surfaceContainerHighest,
+                                    child: Icon(
+                                      Icons.image_not_supported,
+                                      color: _scheme.outline,
+                                      size: 40,
+                                    ),
+                                  )
+                                : Image.file(File(url), fit: BoxFit.cover))),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -968,52 +1195,118 @@ class _GadgetDetailScreenState extends State<GadgetDetailScreen> {
         .replaceAll(RegExp(r'^-+|-+$'), '');
   }
 
+  void _showMediaViewer(int initialIndex) {
+    if (_currentGadget.imageUrls.isEmpty) return;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.9),
+      builder: (context) {
+        return Stack(
+          children: [
+            PageView.builder(
+              controller: PageController(initialPage: initialIndex),
+              itemCount: _currentGadget.imageUrls.length,
+              itemBuilder: (context, index) {
+                final url = _currentGadget.imageUrls[index];
+                return InteractiveViewer(
+                  minScale: 0.5,
+                  maxScale: 4.0,
+                  child: Center(
+                    child:
+                        (url.startsWith('http') ||
+                            url.startsWith('https') ||
+                            url.startsWith('blob:'))
+                        ? Image.network(url)
+                        : (url.startsWith('/uploads')
+                              ? Image.network('${ApiService.hostUrl}$url')
+                              : (kIsWeb
+                                    ? Container(
+                                        color: _scheme.surfaceContainerHighest,
+                                        child: Icon(
+                                          Icons.image_not_supported,
+                                          color: _scheme.outline,
+                                          size: 50,
+                                        ),
+                                      )
+                                    : Image.file(File(url)))),
+                  ),
+                );
+              },
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: Icon(Icons.close, color: Colors.white, size: 30),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _launchMarketplace() {
-    final brand = _slugify(_currentGadget.brand ?? '');
-    final model = _slugify(_currentGadget.model ?? '');
-    final storage = _slugify(_currentGadget.storageCapacity ?? '');
-    final color = _slugify(_currentGadget.color ?? '');
+    // Cashify verified format: /{category}/sell-{brand} — navigates to brand model selection
+    final category = _currentGadget.category.toLowerCase();
+    final String categoryPath = _cashifyCategoryPath(category);
 
-    String baseUrl = 'https://www.cashify.in/sell-old-mobile-phone';
-    String category = _currentGadget.category.toLowerCase();
-
-    if (category.contains('laptop')) {
-      baseUrl = 'https://www.cashify.in/sell-old-laptop';
-    } else if (category.contains('tablet')) {
-      baseUrl = 'https://www.cashify.in/sell-old-tablet';
-    } else if (category.contains('watch')) {
-      baseUrl = 'https://www.cashify.in/sell-old-smart-watch';
-    } else if (category.contains('camera')) {
-      baseUrl = 'https://www.cashify.in/sell-old-camera';
+    final brand = (_currentGadget.brand ?? '').trim().toLowerCase();
+    String finalPath = categoryPath;
+    if (brand.isNotEmpty) {
+      var brandSlug = brand
+          .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+          .replaceAll(RegExp(r'-+'), '-')
+          .replaceAll(RegExp(r'^-|-$'), '');
+      if (brand.contains('hp') || brand.contains('compaq')) {
+        brandSlug = 'hp-compaq';
+      }
+      finalPath = '$categoryPath/sell-$brandSlug';
     }
 
-    // Try to construct a direct slug if enough info is present
-    Uri? url;
-    if (brand.isNotEmpty && model.isNotEmpty) {
-      String slug = 'used-$brand-$model';
-      if (storage.isNotEmpty) slug += '-$storage';
-      if (color.isNotEmpty) slug += '-$color';
+    final marketplaceUri = Uri.https('www.cashify.in', finalPath);
+    _openUrl(marketplaceUri.toString());
+  }
 
-      // Attempt direct URL
-      url = Uri.tryParse('$baseUrl/$slug');
-    } else {
-      // Fallback to search if not enough info
-      final query = [
-        brand,
-        model,
-        storage,
-        color,
-      ].where((s) => s.isNotEmpty).join('+');
-      url = Uri.tryParse('$baseUrl/search?q=$query');
+  /// Maps app device types to Cashify category path. Covers all device types.
+  String _cashifyCategoryPath(String category) {
+    if (category.contains('mobile') ||
+        category.contains('phone') ||
+        category.contains('smartphone')) {
+      return '/sell-old-mobile-phone';
     }
-
-    if (url != null) {
-      launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not build marketplace link.')),
-      );
+    if (category.contains('laptop')) return '/sell-old-laptop';
+    if (category.contains('tablet') ||
+        category.contains('e-reader') ||
+        category.contains('ereader')) {
+      return '/sell-old-tablet';
     }
+    if (category.contains('watch') || category.contains('smartwatch')) {
+      return '/sell-old-smart-watch';
+    }
+    if (category.contains('camera') || category.contains('drone')) {
+      return '/sell-old-dslr-camera';
+    }
+    if (category.contains('headphone') ||
+        category.contains('earbud') ||
+        category.contains('audio') ||
+        category.contains('speaker')) {
+      return '/sell-old-earbuds';
+    }
+    if (category.contains('smart home')) return '/sell-old-smart-speaker';
+    if (category.contains('television') ||
+        category.contains('tv') ||
+        category.contains('gaming') ||
+        category.contains('console')) {
+      return '/sell-old-television';
+    }
+    if (category.contains('peripheral') || category.contains('accessory')) {
+      return '/sell-old-earbuds';
+    }
+    // Default for Other and any uncategorized device type
+    return '/sell-old-mobile-phone';
   }
 
   IconData _getCategoryIcon(String category) {

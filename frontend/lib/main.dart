@@ -10,10 +10,14 @@ import 'services/settings_provider.dart';
 import 'services/notification_service.dart';
 import 'screens/login_screen.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final settingsProvider = SettingsProvider();
+  await settingsProvider.loadFromStorage();
+
   runApp(
     MultiProvider(
-      providers: [ChangeNotifierProvider(create: (_) => SettingsProvider())],
+      providers: [ChangeNotifierProvider.value(value: settingsProvider)],
       child: DeviceCareApp(),
     ),
   );

@@ -22,6 +22,7 @@ app.get('/health', (req, res) => {
 });
 
 // Import routes
+const uploadRoutes = require('./routes/uploadRoutes');
 const gadgetRoutes = require('./routes/gadgetRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const logRoutes = require('./routes/logRoutes');
@@ -33,6 +34,11 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/logs', logRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/folders', folderRoutes);
+app.use('/api/upload', uploadRoutes);
+
+// Serve static files
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Sync database and start server
 async function startServer() {
@@ -41,8 +47,8 @@ async function startServer() {
         console.log('Database connected successfully');
         await sequelize.sync({ force: false });
         console.log('Database synced successfully');
-        app.listen(PORT, () => {
-            console.log(`Server is running on port ${PORT}`);
+        app.listen(PORT, '0.0.0.0', () => {
+            console.log(`Server is running on http://localhost:${PORT}`);
         });
     } catch (err) {
         console.error('Failed to start server:', err);

@@ -65,7 +65,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
           );
         }
       }
-
       if (mounted) {
         setState(() {
           _events
@@ -112,8 +111,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return _events[key] ?? [];
   }
 
+  List<_CalendarEvent> _getMergedEventsForDay(
+    DateTime day,
+    SettingsProvider settings,
+  ) {
+    final baseEvents = _getEventsForDay(day);
+    final merged = List<_CalendarEvent>.from(baseEvents);
+
+    for (final reminder in settings.customReminders) {
+      if (isSameDay(reminder.date, day)) {
+        merged.add(
+          _CalendarEvent(
+            title: 'Custom Reminder',
+            subtitle: reminder.deviceName,
+            type: _CalendarEventType.maintenance,
+          ),
+        );
+      }
+    }
+
+    return merged;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
     final gradient = _isDark
         ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
         : [_scheme.surface, _scheme.primaryContainer.withOpacity(0.32)];
@@ -152,7 +174,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         focusedDay: _focusedDay,
                         selectedDayPredicate: (day) =>
                             isSameDay(_selectedDay, day),
-                        eventLoader: _getEventsForDay,
+                        eventLoader: (day) =>
+                            _getMergedEventsForDay(day, settings),
                         calendarFormat: CalendarFormat.month,
                         onDaySelected: (selectedDay, focusedDay) {
                           setState(() {
@@ -196,15 +219,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                     ),
                   ),
-                  Expanded(child: _buildSelectedDayEvents()),
+                  Expanded(child: _buildSelectedDayEvents(settings)),
                 ],
               ),
       ),
     );
   }
 
-  Widget _buildSelectedDayEvents() {
-    final events = _getEventsForDay(_selectedDay);
+  Widget _buildSelectedDayEvents(SettingsProvider settings) {
+    final events = _getMergedEventsForDay(_selectedDay, settings);
 
     if (events.isEmpty) {
       return Center(

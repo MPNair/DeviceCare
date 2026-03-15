@@ -91,10 +91,22 @@ class DashboardScreenState extends State<DashboardScreen> {
                               return Center(child: CircularProgressIndicator());
                             }
                             if (snapshot.hasError) {
+                              final msg = snapshot.error.toString().replaceFirst('Exception: ', '');
                               return Center(
-                                child: Text(
-                                  'Error: ${snapshot.error}',
-                                  style: TextStyle(color: Colors.redAccent),
+                                child: Padding(
+                                  padding: EdgeInsets.all(20),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.cloud_off, size: 48, color: Colors.redAccent),
+                                      SizedBox(height: 12),
+                                      Text(
+                                        msg,
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Colors.redAccent),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               );
                             }

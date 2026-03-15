@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 import '../services/settings_provider.dart';
 import '../main.dart';
 import 'package:file_picker/file_picker.dart';
-import '../services/scanner_service.dart';
 import 'dart:io';
 
 class GadgetListScreen extends StatefulWidget {
@@ -49,11 +48,6 @@ class GadgetListScreenState extends State<GadgetListScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: Icon(Icons.qr_code_scanner),
-            tooltip: 'Scan to Add',
-            onPressed: _scanToAdd,
-          ),
           IconButton(icon: Icon(Icons.refresh), onPressed: refreshGadgets),
         ],
       ),
@@ -155,19 +149,5 @@ class GadgetListScreenState extends State<GadgetListScreen> {
         backgroundColor: scheme.primary,
       ),
     );
-  }
-
-  void _scanToAdd() async {
-    final code = await ScannerService.scanCode();
-    if (code != null) {
-      if (!mounted) return;
-      final result = await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => AddGadgetScreen(initialSerialNumber: code),
-        ),
-      );
-      if (result == true) refreshGadgets();
-    }
   }
 }

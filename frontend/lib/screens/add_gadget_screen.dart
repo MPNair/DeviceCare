@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
@@ -7,12 +8,12 @@ import '../themes/glass_theme.dart';
 import 'package:provider/provider.dart';
 import '../services/settings_provider.dart';
 import '../services/notification_service.dart';
-import '../services/scanner_service.dart';
 import '../models/folder.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'dart:io' if (dart.library.html) '../services/api_service_stub.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../widgets/local_file_image_io.dart' if (dart.library.html) '../widgets/local_file_image_stub.dart' as local_file_image;
 
 class AddGadgetScreen extends StatefulWidget {
   final Gadget? gadget; // If provided, we are in Edit mode
@@ -48,6 +49,7 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
   List<Folder> _availableFolders = [];
   String? _selectedFolderId;
   List<String> _imageUrls = [];
+  bool _isUploadingImage = false;
   List<Map<String, dynamic>> _documents = [];
   Map<String, dynamic> _customFields = {};
 
@@ -386,15 +388,6 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
         labelText: label,
         labelStyle: TextStyle(color: _scheme.onSurfaceVariant),
         prefixIcon: Icon(icon, color: _scheme.primary),
-        suffixIcon: label == 'Serial Number'
-            ? IconButton(
-                icon: Icon(Icons.qr_code_scanner, color: _scheme.primary),
-                onPressed: () async {
-                  final code = await ScannerService.scanCode();
-                  if (code != null) controller.text = code;
-                },
-              )
-            : null,
         filled: true,
         fillColor: _isDark ? Colors.white.withOpacity(0.05) : Colors.white,
         enabledBorder: OutlineInputBorder(
@@ -600,18 +593,15 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
                                 height: 100,
                                 fit: BoxFit.cover,
                               )
-                            : (kIsWeb
-                                  ? Container(
+                            : (url.startsWith('/uploads')
+                                  ? Image.network(
+                                      '${ApiService.hostUrl}$url',
                                       width: 100,
                                       height: 100,
-                                      color: _scheme.surfaceContainerHighest,
-                                      child: Icon(
-                                        Icons.image_not_supported,
-                                        color: _scheme.outline,
-                                      ),
+                                      fit: BoxFit.cover,
                                     )
-                                  : Image.file(
-                                      File(url),
+                                  : local_file_image.buildLocalFileImage(
+                                      url,
                                       width: 100,
                                       height: 100,
                                       fit: BoxFit.cover,
@@ -641,48 +631,100 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
                   ),
                 );
               }),
-              InkWell(
-                onTap: () async {
-                  final picker = ImagePicker();
-                  final image = await picker.pickImage(
-                    source: ImageSource.gallery,
-                  );
-                  if (image != null) {
-                    setState(() => _imageUrls.add(image.path));
-                  }
-                },
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: _isDark
-                        ? Colors.white.withOpacity(0.05)
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _scheme.outlineVariant.withOpacity(0.65),
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_a_photo,
-                        color: GlassTheme.accentColor,
-                        size: 28,
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Add Photo',
-                        style: TextStyle(
-                          color: _scheme.onSurfaceVariant,
-                          fontSize: 10,
+              _isUploadingImage
+                  ? Container(
+                      width: 100,
+                      height: 100,
+                      decoration: BoxDecoration(
+                        color: _isDark
+                            ? Colors.white.withOpacity(0.05)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _scheme.outlineVariant.withOpacity(0.65),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              ),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  : InkWell(
+                      onTap: () async {
+                        final picker = ImagePicker();
+                        final image = await picker.pickImage(
+                          source: ImageSource.gallery,
+                        );
+                        if (image != null) {
+                          setState(() => _isUploadingImage = true);
+                          try {
+                            final token = Provider.of<SettingsProvider>(
+                              context,
+                              listen: false,
+                            ).authToken;
+                            String uploadedUrl;
+
+                            if (kIsWeb) {
+                              final bytes = await image.readAsBytes();
+                              uploadedUrl = await _apiService.uploadFileBytes(
+                                bytes,
+                                image.name,
+                                token,
+                              );
+                            } else {
+                              final urls = await _apiService.uploadFiles([
+                                image.path,
+                              ], token);
+                              uploadedUrl = urls.first;
+                            }
+
+                            if (mounted) {
+                              setState(() {
+                                _imageUrls.add(uploadedUrl);
+                                _isUploadingImage = false;
+                              });
+                            }
+                          } catch (e) {
+                            if (mounted) {
+                              setState(() => _isUploadingImage = false);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Image upload failed: $e'),
+                                ),
+                              );
+                            }
+                          }
+                        }
+                      },
+                      child: Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: _isDark
+                              ? Colors.white.withOpacity(0.05)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _scheme.outlineVariant.withOpacity(0.65),
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_a_photo,
+                              color: GlassTheme.accentColor,
+                              size: 28,
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Add Photo',
+                              style: TextStyle(
+                                color: _scheme.onSurfaceVariant,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
             ],
           ),
         ),
@@ -811,6 +853,8 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
   void _addDocument() {
     String docName = '';
     String? docPath;
+    Uint8List? docBytes;
+    bool isUploading = false;
 
     showDialog(
       context: context,
@@ -832,13 +876,22 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
               ),
               SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: () async {
-                  FilePickerResult? result = await FilePicker.platform
-                      .pickFiles();
-                  if (result != null) {
-                    setDialogState(() => docPath = result.files.single.path);
-                  }
-                },
+                onPressed: isUploading
+                    ? null
+                    : () async {
+                        FilePickerResult? result = await FilePicker.platform
+                            .pickFiles(withData: kIsWeb);
+                        if (result != null) {
+                          setDialogState(() {
+                            if (kIsWeb) {
+                              docBytes = result.files.single.bytes;
+                              docPath = result.files.single.name;
+                            } else {
+                              docPath = result.files.single.path;
+                            }
+                          });
+                        }
+                      },
                 icon: Icon(Icons.attach_file),
                 label: Text(docPath != null ? 'File Selected' : 'Select File'),
               ),
@@ -853,23 +906,54 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
                     ),
                   ),
                 ),
+              if (isUploading)
+                Padding(
+                  padding: const EdgeInsets.only(top: 15.0),
+                  child: CircularProgressIndicator(),
+                ),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: isUploading ? null : () => Navigator.pop(context),
               child: Text('Cancel'),
             ),
             TextButton(
-              onPressed: () {
-                if (docName.isNotEmpty && docPath != null) {
-                  setState(() {
-                    _documents.add({'name': docName, 'url': docPath});
-                  });
-                  Navigator.pop(context);
-                }
-              },
-              child: Text('Add'),
+              onPressed: (isUploading || docPath == null || docName.isEmpty)
+                  ? null
+                  : () async {
+                      setDialogState(() => isUploading = true);
+                      try {
+                        final token = Provider.of<SettingsProvider>(
+                          context,
+                          listen: false,
+                        ).authToken;
+                        String uploadedUrl;
+                        if (kIsWeb && docBytes != null) {
+                          uploadedUrl = await _apiService.uploadFileBytes(
+                            docBytes!,
+                            docPath!,
+                            token,
+                          );
+                        } else {
+                          final urls = await _apiService.uploadFiles([
+                            docPath!,
+                          ], token);
+                          uploadedUrl = urls.first;
+                        }
+
+                        setState(() {
+                          _documents.add({'name': docName, 'url': uploadedUrl});
+                        });
+                        if (mounted) Navigator.pop(context);
+                      } catch (e) {
+                        setDialogState(() => isUploading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Upload failed: $e')),
+                        );
+                      }
+                    },
+              child: Text('Upload & Add'),
             ),
           ],
         ),
@@ -1004,6 +1088,54 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
         final settings = Provider.of<SettingsProvider>(context, listen: false);
         final token = settings.authToken;
 
+        List<String> localImages = _imageUrls
+            .where(
+              (url) => !url.startsWith('http') && !url.startsWith('/uploads'),
+            )
+            .toList();
+        List<String> finalImageUrls = _imageUrls
+            .where(
+              (url) => url.startsWith('http') || url.startsWith('/uploads'),
+            )
+            .toList();
+
+        if (localImages.isNotEmpty) {
+          final uploadedUrls = await _apiService.uploadFiles(
+            localImages,
+            token,
+          );
+          finalImageUrls.addAll(uploadedUrls);
+        }
+
+        List<Map<String, String>> finalDocuments = [];
+        List<String> localDocPaths = [];
+        List<int> localDocIndices = [];
+
+        for (int i = 0; i < _documents.length; i++) {
+          final doc = _documents[i];
+          final url = doc['url'] ?? '';
+          if (!url.startsWith('http') && !url.startsWith('/uploads')) {
+            localDocPaths.add(url);
+            localDocIndices.add(i);
+          } else {
+            finalDocuments.add({'name': doc['name']!, 'url': url});
+          }
+        }
+
+        if (localDocPaths.isNotEmpty) {
+          final uploadedUrls = await _apiService.uploadFiles(
+            localDocPaths,
+            token,
+          );
+          for (int i = 0; i < uploadedUrls.length; i++) {
+            final originalDoc = _documents[localDocIndices[i]];
+            finalDocuments.add({
+              'name': originalDoc['name']!,
+              'url': uploadedUrls[i],
+            });
+          }
+        }
+
         final gadgetData = {
           'name': _nameController.text,
           'category': _category,
@@ -1022,8 +1154,8 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
           'ownershipStatus': _ownershipStatus,
           'room': _roomController.text,
           'folderId': _selectedFolderId,
-          'imageUrls': _imageUrls,
-          'documents': _documents,
+          'imageUrls': finalImageUrls,
+          'documents': finalDocuments,
           'customFields': _customFields,
           'tags': _tagsController.text
               .split(',')
@@ -1068,19 +1200,29 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
         allowedExtensions: ['csv'],
       );
 
-      if (result != null && result.files.single.path != null) {
-        final settings = Provider.of<SettingsProvider>(context, listen: false);
-        await _apiService.importCSV(
-          File(result.files.single.path!),
-          settings.authToken,
-        );
-        await NotificationService.syncSchedulesFromApi(context);
+      if (result == null || result.files.isEmpty) return;
+
+      final settings = Provider.of<SettingsProvider>(context, listen: false);
+      final file = result.files.single;
+
+      if (kIsWeb && file.bytes != null) {
+        await _apiService.importCSVFromBytes(file.bytes!, settings.authToken);
+      } else if (!kIsWeb && file.path != null) {
+        await _apiService.importCSV(File(file.path!), settings.authToken);
+      } else {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Import successful')));
-          Navigator.pop(context, true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not read file')),
+          );
         }
+        return;
+      }
+      await NotificationService.syncSchedulesFromApi(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Import successful')),
+        );
+        Navigator.pop(context, true);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
