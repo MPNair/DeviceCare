@@ -13,7 +13,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io' if (dart.library.html) '../services/api_service_stub.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import '../widgets/local_file_image_io.dart' if (dart.library.html) '../widgets/local_file_image_stub.dart' as local_file_image;
+import '../widgets/local_file_image_io.dart'
+    if (dart.library.html) '../widgets/local_file_image_stub.dart'
+    as local_file_image;
 
 class AddGadgetScreen extends StatefulWidget {
   final Gadget? gadget; // If provided, we are in Edit mode
@@ -48,6 +50,19 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
   late DateTime _purchaseDate;
   List<Folder> _availableFolders = [];
   String? _selectedFolderId;
+
+  void _validateSelectedFolderId() {
+    // Null is always valid
+    if (_selectedFolderId == null) return;
+    final ids = _availableFolders.map((f) => f.id).toList();
+    final count = ids.where((id) => id == _selectedFolderId).length;
+    if (count != 1) {
+      setState(() {
+        _selectedFolderId = null;
+      });
+    }
+  }
+
   List<String> _imageUrls = [];
   bool _isUploadingImage = false;
   List<Map<String, dynamic>> _documents = [];
@@ -135,6 +150,7 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
         setState(() {
           _availableFolders = folders;
         });
+        _validateSelectedFolderId();
       }
     } catch (e) {
       debugPrint('Error fetching folders: $e');
@@ -595,7 +611,7 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
                               )
                             : (url.startsWith('/uploads')
                                   ? Image.network(
-                                      '${ApiService.hostUrl}$url',
+                                      url,
                                       width: 100,
                                       height: 100,
                                       fit: BoxFit.cover,
@@ -1211,17 +1227,17 @@ class _AddGadgetScreenState extends State<AddGadgetScreen> {
         await _apiService.importCSV(File(file.path!), settings.authToken);
       } else {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not read file')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Could not read file')));
         }
         return;
       }
       await NotificationService.syncSchedulesFromApi(context);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Import successful')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Import successful')));
         Navigator.pop(context, true);
       }
     } catch (e) {

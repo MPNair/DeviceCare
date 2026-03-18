@@ -59,7 +59,10 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> register(
-      String name, String email, String password) async {
+    String name,
+    String email,
+    String password,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/auth/register'),
@@ -83,12 +86,12 @@ class ApiService {
       if (token != null) {
         headers['Authorization'] = 'Bearer $token';
       }
-      
+
       final response = await http.get(
         Uri.parse('$baseUrl/gadgets'),
         headers: headers,
       );
-      
+
       if (response.statusCode == 200) {
         List jsonResponse = json.decode(response.body);
         return jsonResponse.map((data) => Gadget.fromJson(data)).toList();
@@ -106,12 +109,12 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    
+
     final response = await http.get(
       Uri.parse('$baseUrl/gadgets/$id'),
       headers: headers,
     );
-    
+
     if (response.statusCode == 200) {
       return Gadget.fromJson(json.decode(response.body));
     } else {
@@ -139,12 +142,15 @@ class ApiService {
     }
   }
 
-  Future<Gadget> createGadget(Map<String, dynamic> gadget, String? token) async {
+  Future<Gadget> createGadget(
+    Map<String, dynamic> gadget,
+    String? token,
+  ) async {
     final headers = {'Content-Type': 'application/json'};
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    
+
     final response = await http.post(
       Uri.parse('$baseUrl/gadgets'),
       headers: headers,
@@ -154,16 +160,22 @@ class ApiService {
       return Gadget.fromJson(json.decode(response.body));
     } else {
       final errorData = json.decode(response.body);
-      throw Exception('Creation Failed: ${errorData['error'] ?? 'Unknown Error'}');
+      throw Exception(
+        'Creation Failed: ${errorData['error'] ?? 'Unknown Error'}',
+      );
     }
   }
 
-  Future<Gadget> updateGadget(String id, Map<String, dynamic> gadget, String? token) async {
+  Future<Gadget> updateGadget(
+    String id,
+    Map<String, dynamic> gadget,
+    String? token,
+  ) async {
     final headers = {'Content-Type': 'application/json'};
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    
+
     final response = await http.put(
       Uri.parse('$baseUrl/gadgets/$id'),
       headers: headers,
@@ -181,34 +193,40 @@ class ApiService {
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    
+
     final response = await http.delete(
       Uri.parse('$baseUrl/gadgets/$id'),
       headers: headers,
     );
-    
+
     if (response.statusCode != 204) {
       throw Exception('Delete Failed');
     }
   }
 
-  Future<MaintenanceLog> createMaintenanceLog(String gadgetId, Map<String, dynamic> log, String? token) async {
+  Future<MaintenanceLog> createMaintenanceLog(
+    String gadgetId,
+    Map<String, dynamic> log,
+    String? token,
+  ) async {
     final headers = {'Content-Type': 'application/json'};
     if (token != null) {
       headers['Authorization'] = 'Bearer $token';
     }
-    
+
     final response = await http.post(
       Uri.parse('$baseUrl/logs/$gadgetId/logs'),
       headers: headers,
       body: json.encode(log),
     );
-    
+
     if (response.statusCode == 201) {
       return MaintenanceLog.fromJson(json.decode(response.body));
     } else {
       final errorData = json.decode(response.body);
-      throw Exception('Log Creation Failed: ${errorData['error'] ?? 'Unknown Error'}');
+      throw Exception(
+        'Log Creation Failed: ${errorData['error'] ?? 'Unknown Error'}',
+      );
     }
   }
 
@@ -217,20 +235,28 @@ class ApiService {
   Future<List<Folder>> getFolders(String? token) async {
     final headers = {'Content-Type': 'application/json'};
     if (token != null) headers['Authorization'] = 'Bearer $token';
-    
-    final response = await http.get(Uri.parse('$baseUrl/folders'), headers: headers);
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/folders'),
+      headers: headers,
+    );
     if (response.statusCode == 200) {
       List jsonResponse = json.decode(response.body);
       return jsonResponse.map((data) => Folder.fromJson(data)).toList();
     } else {
-      throw Exception('Failed to load folders: ${response.statusCode} - ${response.body}');
+      throw Exception(
+        'Failed to load folders: ${response.statusCode} - ${response.body}',
+      );
     }
   }
 
-  Future<Folder> createFolder(Map<String, dynamic> folder, String? token) async {
+  Future<Folder> createFolder(
+    Map<String, dynamic> folder,
+    String? token,
+  ) async {
     final headers = {'Content-Type': 'application/json'};
     if (token != null) headers['Authorization'] = 'Bearer $token';
-    
+
     final response = await http.post(
       Uri.parse('$baseUrl/folders'),
       headers: headers,
@@ -243,10 +269,14 @@ class ApiService {
     }
   }
 
-  Future<void> updateFolder(String id, Map<String, dynamic> folder, String? token) async {
+  Future<void> updateFolder(
+    String id,
+    Map<String, dynamic> folder,
+    String? token,
+  ) async {
     final headers = {'Content-Type': 'application/json'};
     if (token != null) headers['Authorization'] = 'Bearer $token';
-    
+
     final response = await http.put(
       Uri.parse('$baseUrl/folders/$id'),
       headers: headers,
@@ -260,18 +290,59 @@ class ApiService {
   Future<void> deleteFolder(String id, String? token) async {
     final headers = {'Content-Type': 'application/json'};
     if (token != null) headers['Authorization'] = 'Bearer $token';
-    
-    final response = await http.delete(Uri.parse('$baseUrl/folders/$id'), headers: headers);
+
+    final response = await http.delete(
+      Uri.parse('$baseUrl/folders/$id'),
+      headers: headers,
+    );
     if (response.statusCode != 204) {
       throw Exception('Folder deletion failed');
     }
   }
 
+  Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+    String? token,
+  ) async {
+    try {
+      final headers = {'Content-Type': 'application/json'};
+      if (token != null) headers['Authorization'] = 'Bearer $token';
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/auth/change-password'),
+        headers: headers,
+        body: json.encode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      );
+      if (response.statusCode == 200) return;
+      try {
+        final errorData = json.decode(response.body);
+        throw Exception(errorData['error'] ?? 'Password change failed');
+      } on FormatException {
+        throw Exception(
+          'Server error (status ${response.statusCode}). Make sure the backend is running and restarted.',
+        );
+      }
+    } catch (e) {
+      if (_isConnectionError(e)) throw Exception(_connectionErrorMsg);
+      rethrow;
+    }
+  }
+
   Future<Uint8List> exportData(String? token) async {
-    final headers = {'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'};
+    final headers = {
+      'Accept':
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    };
     if (token != null) headers['Authorization'] = 'Bearer $token';
-    
-    final response = await http.get(Uri.parse('$baseUrl/gadgets/export'), headers: headers);
+
+    final response = await http.get(
+      Uri.parse('$baseUrl/gadgets/export'),
+      headers: headers,
+    );
     if (response.statusCode == 200) {
       return response.bodyBytes;
     } else {
@@ -283,11 +354,16 @@ class ApiService {
 
   /// Import CSV from bytes. Use this on web where File is not available.
   Future<void> importCSVFromBytes(Uint8List bytes, String? token) async {
-    var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/gadgets/import'));
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/gadgets/import'),
+    );
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
-    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: 'import.csv'));
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: 'import.csv'),
+    );
     var response = await request.send();
     if (response.statusCode != 200) {
       throw Exception('CSV Import Failed');
@@ -295,13 +371,18 @@ class ApiService {
   }
 
   Future<void> importCSV(File file, String? token) async {
-    var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/gadgets/import'));
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/gadgets/import'),
+    );
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
     if (kIsWeb) {
       final bytes = await file.readAsBytes();
-      request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: 'import.csv'));
+      request.files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: 'import.csv'),
+      );
     } else {
       request.files.add(await http.MultipartFile.fromPath('file', file.path));
     }
@@ -313,44 +394,58 @@ class ApiService {
 
   // --- File Upload Methods ---
 
-  Future<List<String>> uploadFiles(List<String> filePaths, String? token) async {
+  Future<List<String>> uploadFiles(
+    List<String> filePaths,
+    String? token,
+  ) async {
     if (filePaths.isEmpty) return [];
-    
+
     var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/upload'));
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
-    
+
     for (var path in filePaths) {
       if (kIsWeb) {
         // Handle web blob URLs by fetching the bytes first
         final response = await http.get(Uri.parse(path));
         final bytes = response.bodyBytes;
-        final filename = path.split('/').last.split('?').first + '.jpg'; // Fallback name
-        request.files.add(http.MultipartFile.fromBytes('files', bytes, filename: filename));
+        final filename =
+            path.split('/').last.split('?').first + '.jpg'; // Fallback name
+        request.files.add(
+          http.MultipartFile.fromBytes('files', bytes, filename: filename),
+        );
       } else {
         request.files.add(await http.MultipartFile.fromPath('files', path));
       }
     }
-    
+
     var response = await request.send();
     if (response.statusCode == 200) {
       final respStr = await response.stream.bytesToString();
       final Map<String, dynamic> jsonResponse = json.decode(respStr);
       return List<String>.from(jsonResponse['urls']);
     } else {
-      throw Exception('Failed to upload files. Status Code: ${response.statusCode}');
+      throw Exception(
+        'Failed to upload files. Status Code: ${response.statusCode}',
+      );
     }
   }
 
-  Future<String> uploadFileBytes(Uint8List bytes, String filename, String? token) async {
+  Future<String> uploadFileBytes(
+    Uint8List bytes,
+    String filename,
+    String? token,
+  ) async {
     var request = http.MultipartRequest('POST', Uri.parse('$baseUrl/upload'));
     if (token != null) {
       request.headers['Authorization'] = 'Bearer $token';
     }
-    
-    request.files.add(http.MultipartFile.fromBytes('files', bytes, filename: filename));
-    
+
+    request.files.add(
+      http.MultipartFile.fromBytes('files', bytes, filename: filename),
+    );
+
     var response = await request.send();
     if (response.statusCode == 200) {
       final respStr = await response.stream.bytesToString();
@@ -359,7 +454,9 @@ class ApiService {
       if (urls.isNotEmpty) return urls.first;
       throw Exception('Upload succeeded but no URL returned.');
     } else {
-      throw Exception('Failed to upload file bytes. Status Code: ${response.statusCode}');
+      throw Exception(
+        'Failed to upload file bytes. Status Code: ${response.statusCode}',
+      );
     }
   }
 }

@@ -52,71 +52,18 @@ class SettingsScreen extends StatelessWidget {
               _buildSectionTitle('Preferences', isDark),
               _buildThemeTile(context, settings, isDark),
               _buildCurrencyTile(context, settings, isDark),
-              _buildSettingTile(
-                context,
-                Icons.notifications,
-                'Notifications',
-                settings.notificationsEnabled ? 'Enabled' : 'Disabled',
-                isDark,
-                trailing: Switch(
-                  value: settings.notificationsEnabled,
-                  activeColor: GlassTheme.accentColor,
-                  onChanged: (v) async {
-                    settings.toggleNotifications(v);
-                    await NotificationService.syncSchedulesFromApi(context);
-                  },
-                ),
-              ),
-              _buildSettingTile(
-                context,
-                Icons.notification_add,
-                'Test Notification Now',
-                'Tap to verify device notification permission',
-                isDark,
-                onTap: () async {
-                  final ok =
-                      await NotificationService.sendTestNotificationNow();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        ok
-                            ? 'Test notification sent.'
-                            : 'Notification permission denied or unavailable.',
-                      ),
-                      backgroundColor: ok ? Colors.green : Colors.orange,
-                    ),
-                  );
-                },
-              ),
 
               SizedBox(height: 25),
               _buildSectionTitle('Security & Data', isDark),
               _buildSettingTile(
                 context,
                 Icons.lock,
-                'Security',
-                'Fingerprint / FaceID',
+                'Change Password',
+                'Update your account password',
                 isDark,
-                onTap: () => _showSecurityDialog(context, isDark),
+                onTap: () => _showChangePasswordDialog(context, isDark),
               ),
-              _buildSettingTile(
-                context,
-                Icons.cloud_sync,
-                'Cloud Backup',
-                'Synchronized today',
-                isDark,
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Simulated optimized cloud backup complete!',
-                      ),
-                      backgroundColor: Colors.green,
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-              ),
+
               _buildSettingTile(
                 context,
                 Icons.file_download,
@@ -137,7 +84,7 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => _showInfoDialog(
                   context,
                   'About App',
-                  'DeviceCare v1.0.0\nBy Agentic AI',
+                  'DeviceCare v1.0.0 is a sophisticated, privacy-first asset management tool that bridges the gap between basic consumer apps and complex enterprise systems through a robust Flutter and Node.js/Express architecture.',
                 ),
               ),
               _buildSettingTile(
@@ -196,69 +143,185 @@ class SettingsScreen extends StatelessWidget {
     );
   }
 
-  void _showSecurityDialog(BuildContext context, bool isDark) {
-    final pinController = TextEditingController();
+  void _showChangePasswordDialog(BuildContext context, bool isDark) {
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
     final scheme = Theme.of(context).colorScheme;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? Color(0xFF1E293B) : Colors.white,
-        title: Text('App Security', style: TextStyle(color: scheme.onSurface)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Set a PIN to lock the application.',
-              style: TextStyle(color: scheme.onSurfaceVariant),
-            ),
-            SizedBox(height: 15),
-            TextField(
-              controller: pinController,
-              keyboardType: TextInputType.number,
-              obscureText: true,
-              style: TextStyle(color: scheme.onSurface),
-              decoration: InputDecoration(
-                labelText: 'Enter 4-digit PIN',
+      builder: (context) {
+        bool showCurrent = false;
+        bool showNew = false;
+        bool showConfirm = false;
+        bool isLoading = false;
+        String? errorText;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            InputDecoration _fieldDecoration(
+              String label,
+              bool visible,
+              VoidCallback toggle,
+            ) {
+              return InputDecoration(
+                labelText: label,
                 labelStyle: TextStyle(color: scheme.onSurfaceVariant),
                 enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: scheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: scheme.primary),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ),
-            ),
-            SizedBox(height: 10),
-            SwitchListTile(
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    visible ? Icons.visibility_off : Icons.visibility,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  onPressed: toggle,
+                ),
+              );
+            }
+
+            return AlertDialog(
+              backgroundColor: isDark ? Color(0xFF1E293B) : Colors.white,
               title: Text(
-                'Biometrics',
+                'Change Password',
                 style: TextStyle(color: scheme.onSurface),
               ),
-              value: false,
-              activeColor: scheme.primary,
-              onChanged: (val) {},
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            child: Text('Cancel'),
-            onPressed: () => Navigator.pop(context),
-          ),
-          TextButton(
-            child: Text(
-              'Save',
-              style: TextStyle(color: GlassTheme.accentColor),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Security settings updated')),
-              );
-            },
-          ),
-        ],
-      ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: currentCtrl,
+                      obscureText: !showCurrent,
+                      style: TextStyle(color: scheme.onSurface),
+                      decoration: _fieldDecoration(
+                        'Enter Current Password',
+                        showCurrent,
+                        () => setState(() => showCurrent = !showCurrent),
+                      ),
+                    ),
+                    SizedBox(height: 14),
+                    TextField(
+                      controller: newCtrl,
+                      obscureText: !showNew,
+                      style: TextStyle(color: scheme.onSurface),
+                      decoration: _fieldDecoration(
+                        'Enter New Password',
+                        showNew,
+                        () => setState(() => showNew = !showNew),
+                      ),
+                    ),
+                    SizedBox(height: 14),
+                    TextField(
+                      controller: confirmCtrl,
+                      obscureText: !showConfirm,
+                      style: TextStyle(color: scheme.onSurface),
+                      decoration: _fieldDecoration(
+                        'Confirm New Password',
+                        showConfirm,
+                        () => setState(() => showConfirm = !showConfirm),
+                      ),
+                    ),
+                    if (errorText != null) ...[
+                      SizedBox(height: 10),
+                      Text(
+                        errorText!,
+                        style: TextStyle(color: Colors.redAccent, fontSize: 13),
+                      ),
+                    ],
+                    if (isLoading) ...[
+                      SizedBox(height: 14),
+                      CircularProgressIndicator(),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: scheme.onSurfaceVariant),
+                  ),
+                  onPressed: isLoading ? null : () => Navigator.pop(context),
+                ),
+                TextButton(
+                  child: Text(
+                    'Save',
+                    style: TextStyle(color: GlassTheme.accentColor),
+                  ),
+                  onPressed: isLoading
+                      ? null
+                      : () async {
+                          final current = currentCtrl.text.trim();
+                          final newPass = newCtrl.text.trim();
+                          final confirm = confirmCtrl.text.trim();
+
+                          if (current.isEmpty ||
+                              newPass.isEmpty ||
+                              confirm.isEmpty) {
+                            setState(
+                              () => errorText = 'All fields are required.',
+                            );
+                            return;
+                          }
+                          if (newPass.length < 6) {
+                            setState(
+                              () => errorText =
+                                  'New password must be at least 6 characters.',
+                            );
+                            return;
+                          }
+                          if (newPass != confirm) {
+                            setState(
+                              () => errorText = 'New passwords do not match.',
+                            );
+                            return;
+                          }
+
+                          setState(() {
+                            isLoading = true;
+                            errorText = null;
+                          });
+
+                          try {
+                            final token = Provider.of<SettingsProvider>(
+                              context,
+                              listen: false,
+                            ).authToken;
+                            await ApiService().changePassword(
+                              current,
+                              newPass,
+                              token,
+                            );
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Password updated successfully.'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } catch (e) {
+                            setState(() {
+                              isLoading = false;
+                              errorText = e.toString().replaceFirst(
+                                'Exception: ',
+                                '',
+                              );
+                            });
+                          }
+                        },
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 
